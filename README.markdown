@@ -10,9 +10,9 @@ make use of story points in Trello.
 Setup
 -----
 
-Scrum for Trello is a Chrome extension and you can install it via the Chrome Webstore.
+Scrum for Trello is a Chrome extension. There is a version of it on the webstore, but it is currently broken due to changes Trello has made to their website. This repository is a fork of the original repository, with a (hopefully) fixed version.
 
-Or, clone this repository and load the TrelloScrum folder as an unpacked extension.
+Because of that, you can not install it via the webstore. You can only install it as an unpacked extension by cloning this repository and installing it from the Chrome "Extensions" page.
 
 How does it work?
 -----------------
