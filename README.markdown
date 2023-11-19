@@ -14,6 +14,16 @@ Scrum for Trello is a Chrome extension. There is a version of it on the webstore
 
 Because of that, you can not install it via the webstore. You can only install it as an unpacked extension by cloning this repository and installing it from the Chrome "Extensions" page.
 
+These changes are provided AS IS. I am making this fix for my own benefit, and I will try to keep it working as long as that is feasible.
+
+If you don't know how to clone and install, this is the simplest method:
+1. Click on the "Code" button/dropdown on the page for this repo
+2. Choose "Download ZIP" and save the zip file to your machine
+3. Extract the zip file on your machine
+4. Open Chrome and go to Extensions page (you can either find and click on the "Manage Extensions" option in the menus or put `chrome://extensions/` in your address bar and load that page directly)
+5. On the "Extensions" page, click the "Load unpacked" button
+6. Find the `TrelloScrum-master` directory that you extracted from the ZIP file and choose it. Note: the zip program may have created an outer `TrelloScrum-master` directory; if it fails to load, try going into `TrelloScrum-master` and see if there is another `TrelloScrum-master` directory inside it. The directory you will want to select will have an `images` directory in it.
+
 How does it work?
 -----------------
 In the card titles you can add the storypoints between parentheses. The assigned points
