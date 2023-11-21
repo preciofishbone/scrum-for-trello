@@ -21,8 +21,9 @@ If you don't know how to clone and install, this is the simplest method:
 2. Choose "Download ZIP" and save the zip file to your machine
 3. Extract the zip file on your machine
 4. Open Chrome and go to Extensions page (you can either find and click on the "Manage Extensions" option in the menus or put `chrome://extensions/` in your address bar and load that page directly)
-5. On the "Extensions" page, click the "Load unpacked" button
-6. Find the `TrelloScrum-master` directory that you extracted from the ZIP file and choose it. Note: the zip program may have created an outer `TrelloScrum-master` directory; if it fails to load, try going into `TrelloScrum-master` and see if there is another `TrelloScrum-master` directory inside it. The directory you will want to select will have an `images` directory in it.
+5. If it isn't already, turn "Developer Mode" on
+6. On the "Extensions" page, click the "Load unpacked" button
+7. Find the `TrelloScrum-master` directory that you extracted from the ZIP file and choose it. Note: the zip program may have created an outer `TrelloScrum-master` directory; if it fails to load, try going into `TrelloScrum-master` and see if there is another `TrelloScrum-master` directory inside it. The directory you will want to select will have an `images` directory in it.
 
 How does it work?
 -----------------
