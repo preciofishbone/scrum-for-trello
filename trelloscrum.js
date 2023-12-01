@@ -18,6 +18,9 @@
 ** Sean Colombo <https://github.com/seancolombo>
 ** Kevin Strong <https://github.com/KevinStrong>
 **
+** 2023 Trello update fixes:
+** Ken Swanson <https://github.com/Swandog>
+** Gareth J M Saunders <https://github.com/garethjmsaunders/>
 */
 
 // Thanks @unscriptable - http://unscriptable.com/2009/03/20/debouncing-javascript-methods/
@@ -205,16 +208,19 @@ function updateBurndownLink(){
 			}
 			buttons += "</a>";
 		}
-		// Link for settings
+		// Link for Settings
 		buttons += "<a id='scrumSettingsLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
 		buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+scrumLogoUrl+"' width='12' height='12' title='Settings: Scrum for Trello'/></span>";
-		//buttons += "<span class='text board-header-btn-text'>Settings</span>"; // too big :-/ icon only for now
+		buttons += "<span class='text board-header-btn-text'>Settings</span>"; // too big :-/ icon only for now
 		buttons += "</a>";
+
+		$('.board-header-btns').last().after(buttons);
+
 		var showOnLeft = true;
 		if(showOnLeft){
-			$('.board-header-btns.mod-left').last().after(buttons);
+			$('.board-header-btns').last().after(buttons);
 		} else {
-			$('.board-header-btns.mod-right,#board-header a').last().after(buttons);
+			$('.board-header-btns,#board-header a').last().after(buttons);
 		}
         $('#burndownLink').click(showBurndown);
 		$('#scrumSettingsLink').click(showSettings);
