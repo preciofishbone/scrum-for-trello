@@ -1,11 +1,11 @@
 {
 	"name": "Scrum for Trello",
-	"version": "1.105",
+	"version": "1.105.2",
 	"description": "Adds Scrum story points to your Trello",
 	"content_scripts": [
 		{
 			"matches": ["https://trello.com/*"],
-			"js": ["jquery-2.1.4.min.js","trelloscrum.js"],
+			"js": ["jquery-2.2.4.min.js","trelloscrum.js"],
 			"css": ["trelloscrum.css"]
 		}
 	],
