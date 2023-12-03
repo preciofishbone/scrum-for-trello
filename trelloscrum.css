@@ -3,7 +3,7 @@
 	font-size: 16px;
 	font-weight: bold;
 	float: right;
-	margin: 1px 0px 0 0;
+	margin: 0 10px 10px 10px; /* improve alignment */
 	line-height:18px;
 }
 .board-header-btns .list-total{ /* only targets the board totals */
@@ -12,8 +12,11 @@
 }
 
 .list-total .cpoints{
-	margin-right:3px;
 	opacity: 0.5;
+}
+
+.list-total .points {
+	padding-right: 5px;
 }
 
 .list .list-title h2 {
@@ -25,6 +28,13 @@
 
 .manual .window-main-col p, .window-main-col h2 {
 	display: block !important;
+}
+
+/* Collapse Settings button text on smaller viewports */
+@media only screen and (max-width: 1540px) {
+	.s4t-text {
+		display: none;
+	}
 }
 
 .badge-points {
@@ -87,3 +97,5 @@
     margin-top:1px;
 }
 /* == end b4t integration == */
+
+h4.heading {color: red;}
