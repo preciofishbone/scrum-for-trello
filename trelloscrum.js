@@ -18,6 +18,9 @@
 ** Sean Colombo <https://github.com/seancolombo>
 ** Kevin Strong <https://github.com/KevinStrong>
 **
+** Fixes for Trello 2023 changes:
+** Ken Swanson <https://github.com/Swandog>
+** Gareth J M Saunders <https://github.com/garethjmsaunders/>
 */
 
 // Thanks @unscriptable - http://unscriptable.com/2009/03/20/debouncing-javascript-methods/
