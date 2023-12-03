@@ -205,7 +205,7 @@ function updateBurndownLink(){
 			}
 			buttons += "</a>";
 		}
-		// Link for settings
+		// Link for Settings
 		buttons += "<a id='scrumSettingsLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
 		buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+scrumLogoUrl+"' width='12' height='12' title='Settings: Scrum for Trello'/></span>";
 		buttons += "<span class='text board-header-btn-text s4t-text'>Scrum</span>"; // too big :-/ icon only for now
@@ -281,12 +281,15 @@ function showSettings()
 		var setting_link = S4T_SETTINGS[SETTING_NAME_LINK_STYLE];
 		var setting_estimateSeq = S4T_SETTINGS[SETTING_NAME_ESTIMATES];
 	
-		var settingsDiv = $('<div/>', {style: "padding:0px 10px;font-family:'Helvetica Neue', Arial, Helvetica, sans-serif;"});
-		var iframeHeader = $('<h3/>', {style: 'text-align: center;'});
-		iframeHeader.text('Scrum for Trello');
-		var settingsHeader = $('<h3/>', {style: 'text-align: center;margin-bottom:0px'});
-		settingsHeader.text('Settings');
-		var settingsInstructions = $('<div/>', {style: 'margin-bottom:10px'}).html('These settings affect how Scrum for Trello appears to <em>you</em> on all boards.  When you&apos;re done, remember to click "Save Settings" below.');
+		var settingsDiv = $('<div/>', {style: "font-size: 14px; line-height: 16px; color: #111; font-family: 'Segoe UI', 'Roboto', 'Noto Sans', 'Ubuntu', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif;"});
+
+		var iframeHeader = $('<h2/>', {style: "line-height: 40px; text-align: center;"});
+			iframeHeader.text('Scrum for Trello');
+		
+		var settingsHeader = $('<h3/>', {style: ""});
+			settingsHeader.text('Settings');
+		
+		var settingsInstructions = $('<div/>', {style: "margin-bottom: 1em;"}).html('These settings affect how Scrum for Trello appears to <em>you</em> on all boards.  When you&apos;re done, remember to click "Save Settings" below.');
 		var settingsForm = $('<form/>', {id: 'scrumForTrelloForm'});
 		
 		// How the 'Burndown Chart' link should appear (if at all).
@@ -320,7 +323,7 @@ function showSettings()
 			fieldset_burndownLink.append(burndownRadio_none).append(label_none).append("<br/>");
 		
 		// Which estimate buttons should show up.
-		var fieldset_estimateButtons = $('<fieldset/>', {style: 'margin-top:5px'});
+		var fieldset_estimateButtons = $('<fieldset/>', {style: "margin: 10px 0"});
 		var legend_estimateButtons = $('<legend/>');
 		legend_estimateButtons.text("Estimate Buttons");
 		fieldset_estimateButtons.append(legend_estimateButtons);
@@ -341,7 +344,7 @@ function showSettings()
 											});
 			fieldset_estimateButtons.append(restoreDefaultsButton);
 
-		var saveButton = $('<button/>', {style:'margin-top:5px'}).text('Save Settings').click(function(e){
+		var saveButton = $('<button/>', {style:""}).text('Save Settings').click(function(e){
 			e.preventDefault();
 
 			// Save the settings (persists them using Chrome cloud, LocalStorage, or Cookies - in that order of preference if available).
@@ -356,10 +359,10 @@ function showSettings()
 			// Allow the UI to update itself as needed.
 			onSettingsUpdated();
 		});
-		var savedIndicator = $('<span/>', {id: 's4tSaved', style: 'color:#080;background-color:#afa;font-weight:bold;display:none;margin-left:10px'})
-									.text("Saved!");
+		var savedIndicator = $('<span/>', {id: 's4tSaved', style: 'color:white; background-color:#59ac44; font-weight:bold; display:none; margin-left:10px; padding: 0.5em;'}).text("Saved");
 
 		// Set up the form (all added down here to be easier to change the order).
+		
 		settingsForm.append(fieldset_burndownLink);
 		settingsForm.append(fieldset_estimateButtons);
 		settingsForm.append(saveButton);
@@ -368,15 +371,15 @@ function showSettings()
 	
 	// Quick start instructions.
 	var quickStartDiv = $('<div>\
-		<h4 style="margin-top:0px;margin-bottom:0px">Getting started</h4>\
-		<ol style="margin-top:0px">\
+		<h3 class="heading">Getting started</h3>\
+		<ol style="">\
 			<li>To add an estimate to a card, first <strong>click a card</strong> to open it</li>\
 			<li><strong>Click the title of the card</strong> to "edit" the title.</li>\
 			<li>Once the Card title is in edit-mode, blue number buttons will appear. <strong>Click one of the buttons</strong> to set that as the estimate.</li>\
 		</ol>\
 	</div>');
 
-	var moreInfoLink = $('<small>For more information, see <a href="http://scrumfortrello.com">ScrumForTrello.com</a></small>');
+	var moreInfoLink = $('<small>For more information, see <a href="http://scrumfortrello.com" target="_blank">ScrumForTrello.com</a></small>');
 
 	// Add each of the components to build the iframe (all done here to make it easier to re-order them).
 	settingsDiv.append(iframeHeader);
@@ -438,15 +441,16 @@ function hideBurndown()
     //}
 //}
 
-//calculate board totals
+// Calculate board totals
 var ctto;
 function computeTotal(){
 	clearTimeout(ctto);
 	ctto = setTimeout(function(){
-		var $title = $('.board-header-btns.mod-right,#board-header a');
+		// var $title = $('.board-header-btns.mod-right,#board-header a');
+		var $title = $('.board-header-btns,#board-header a');
 		var $total = $title.children('.list-total').empty();
 		if ($total.length == 0)
-			$total = $('<span/>', {class: "list-total"}).appendTo($title);
+			$total = $('<span/>', {class: "list-total"}).prependTo($title);
 
 		for (var i in _pointsAttr){
 			var score = 0,
@@ -455,7 +459,7 @@ function computeTotal(){
 				score+=parseFloat(this.textContent)||0;
 			});
 			var scoreSpan = $('<span/>', {class: attr}).text(round(score)||'');
-			$total.append(scoreSpan);
+			$total.prepend(scoreSpan);
 		}
         
         updateBurndownLink(); // the burndown link and the total are on the same bar... so now they'll be in sync as to whether they're both there or not.
@@ -524,7 +528,7 @@ function List(el){
 				});
 				var scoreTruncated = round(score);
 				var scoreSpan = $('<span/>', {class: attr}).text( (scoreTruncated>0) ? scoreTruncated : '' );
-				$total.append(scoreSpan);
+				$total.prepend(scoreSpan);
 				computeTotal();
 			}
 		});

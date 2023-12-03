@@ -12,8 +12,11 @@
 }
 
 .list-total .cpoints{
-	margin-right:3px;
 	opacity: 0.5;
+}
+
+.list-total .points {
+	padding-right: 5px;
 }
 
 .list .list-title h2 {
@@ -94,3 +97,5 @@
     margin-top:1px;
 }
 /* == end b4t integration == */
+
+h4.heading {color: red;}
