@@ -46,10 +46,48 @@ var debounce = function (func, threshold, execAsap) {
 // For MutationObserver
 var obsConfig = { childList: true, characterData: true, attributes: false, subtree: true };
 
+var _cardTitleElementDataTestId = 'card-name';
+var _ignoreTrelloElements = [
+	'list',
+	'list-total', 
+	'list-title', 
+	'list-header', 
+	'list-footer',
+	'date', // the 'time-ago' functionality changes date spans every minute
+	'js-phrase', // this is constantly updated by Trello, but doesn't affect estimates.
+	'member',
+	'clearfix',
+	'badge',
+	'card-front-badges',
+	'board-header',
+	'board-name-display',
+	'header-container',
+	'header-btn-text',
+	'undefined'
+]
+
 //default story point picker sequence (can be overridden in the Scrum for Trello 'Settings' popup)
 var _pointSeq = ['?', 0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 20, 40, 100];
+var _curlyPointsObj = {
+	pointAttr: 'curlyPoints',
+	class: 'curly-points',
+	title: 'Planned Est',
+	reg: /((?:^|\s?))\{(\x3f|\d*\.?\d+)(\})\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by {}
+}
+var _squarePointsObj = {
+	pointAttr: 'squarePoints',
+	class: 'square-points',
+	title: 'Dev Est',
+	reg: /((?:^|\s?))\[(\x3f|\d*\.?\d+)(\])\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by []
+}
+var _pointsObj = {
+	pointAttr: 'points',
+	class: 'regular-points',
+	title: 'Spent Hours',
+	reg: /((?:^|\s?))\((\x3f|\d*\.?\d+)(\))\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by ()
+}
 //attributes representing points values for card
-var _pointsAttr = ['cpoints', 'points'];
+var _pointsTypes = [_pointsObj, _squarePointsObj, _curlyPointsObj];
 
 // All settings and their defaults.
 var S4T_SETTINGS = [];
@@ -61,9 +99,7 @@ S4T_SETTING_DEFAULTS[SETTING_NAME_LINK_STYLE] = 'full';
 S4T_SETTING_DEFAULTS[SETTING_NAME_ESTIMATES] = _pointSeq.join();
 
 //internals
-var reg = /((?:^|\s?))\((\x3f|\d*\.?\d+)(\))\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by ()
-    regC = /((?:^|\s?))\[(\x3f|\d*\.?\d+)(\])\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by []
-    iconUrl, pointsDoneUrl,
+var iconUrl, pointsDoneUrl,
 	flameUrl, flame18Url,
 	scrumLogoUrl, scrumLogo18Url;
 // FIREFOX_BEGIN_REMOVE
@@ -146,28 +182,23 @@ var recalcTotalsObserver = new CrossBrowser.MutationObserver(function(mutations)
 	var doFullRefresh = false;
 	var refreshJustTotals = false;
 	$.each(mutations, function(index, mutation){
-		var $target = $(mutation.target);
+		if (!doFullRefresh) {
+			var $target = $(mutation.target);
 
-		// Ignore a bunch of known cases that send mutation events which don't require us to recalcListAndTotal.
-		if(! ($target.hasClass('list-total')
-			  || $target.hasClass('list-title')
-			  || $target.hasClass('list-header')
-			  || $target.hasClass('date') // the 'time-ago' functionality changes date spans every minute
-			  || $target.hasClass('js-phrase') // this is constantly updated by Trello, but doesn't affect estimates.
-              || $target.hasClass('member')
-              || $target.hasClass('clearfix')
-              || $target.hasClass('badges')
-			  || $target.hasClass('header-btn-text')
-              || (typeof mutation.target.className == "undefined")
-			  ))
-		{
-			if($target.hasClass('badge')){
-                if(!$target.hasClass("consumed")){
-    				refreshJustTotals = true;
-                }
-			} else {
-				// It appears this was an actual modification and not a recursive notification.
-				doFullRefresh = true;
+			// Ignore a bunch of known cases that send mutation events which don't require us to recalcListAndTotal.
+			if (!_ignoreTrelloElements.find(x => $target.hasClass(x) || $target.attr('data-testid') == x) && 
+				($target.attr('data-testid') == null || $target.attr('data-testid').toLowerCase().indexOf('icon') < 0)) {
+					// if($target.hasClass('badge')){
+					// 	if(!$target.hasClass(_pointsObj.class)){
+					// 		console.log('Refresh Just Total: ' + mutation.target.className + " - " + $target.attr('data-testid'));
+					// 		refreshJustTotals = true;
+					// 	}
+					// } else {
+					// 	// It appears this was an actual modification and not a recursive notification.
+					// 	doFullRefresh = true;
+					// }
+					//console.log('Full refresh: ' + mutation.target.className + " - " + $target.attr('data-testid'));
+					doFullRefresh = true;
 			}
 		}
 	});
@@ -455,13 +486,13 @@ function computeTotal(){
 		if ($total.length == 0)
 			$total = $('<span/>', {class: "list-total"}).prependTo($title);
 
-		for (var i in _pointsAttr){
+		for (var i in _pointsTypes){
 			var score = 0,
-				attr = _pointsAttr[i];
-			$('#board .list-total .'+attr).each(function(){
+				pointType = _pointsTypes[i];
+			$('#board .list-total .'+pointType.class).each(function(){
 				score+=parseFloat(this.textContent)||0;
 			});
-			var scoreSpan = $('<span/>', {class: attr}).text(round(score)||'');
+			var scoreSpan = $('<span/>', {class: pointType.class}).text(round(score)||'');
 			$total.prepend(scoreSpan);
 		}
         
@@ -497,11 +528,11 @@ function List(el){
 			$c = $($c.target).filter("[data-testid='list-card']:not(.placeholder)");
 		}
 		$c.each(function(){
-			if(!this.listCard) for (var i in _pointsAttr){
-				new ListCard(this,_pointsAttr[i]);
+			if(!this.listCard) for (var i in _pointsTypes){
+				new ListCard(this,_pointsTypes[i]);
 			} else {
-				for (var i in _pointsAttr){
-					setTimeout(this.listCard[_pointsAttr[i]].refresh);
+				for (var i in _pointsTypes){
+					setTimeout(this.listCard[_pointsTypes[i].pointAttr].refresh);
 				}
 			}
 		});
@@ -517,20 +548,20 @@ function List(el){
 		clearTimeout(to);
 		to = setTimeout(function(){
 			$total.empty().appendTo($list.find("[data-testid='list-title'],[data-testid='list-header']"));
-			for (var i in _pointsAttr){
+			for (var i in _pointsTypes){
 				var score=0,
-					attr = _pointsAttr[i];
+					pointType = _pointsTypes[i];
 				$list.find("[data-testid='list-card']:not(.placeholder)").each(function(){
 					if(!this.listCard) return;
-					if(!isNaN(Number(this.listCard[attr].points))){
+					if(!isNaN(Number(this.listCard[pointType.pointAttr].points))){
 						// Performance note: calling :visible in the selector above leads to noticible CPU usage.
 						if(jQuery.expr.filters.visible(this)){
-							score+=Number(this.listCard[attr].points);
+							score+=Number(this.listCard[pointType.pointAttr].points);
 						}
 					}
 				});
 				var scoreTruncated = round(score);
-				var scoreSpan = $('<span/>', {class: attr}).text( (scoreTruncated>0) ? scoreTruncated : '' );
+				var scoreSpan = $('<span/>', {class: pointType.class}).text( (scoreTruncated>0) ? scoreTruncated : '' );
 				$total.prepend(scoreSpan);
 				computeTotal();
 			}
@@ -538,12 +569,14 @@ function List(el){
 	};
     
     this.refreshList = debounce(function(){
+		//console.log('refresh list ' + $list.parent().attr('data-list-id'));
         readCard($list.find("[data-testid='list-card']:not(.placeholder)"));
         this.calc(); // readCard will call this.calc() if any of the cards get refreshed.
     }, 500, false);
 
 	var cardAddedRemovedObserver = new CrossBrowser.MutationObserver(function(mutations)
 	{
+		console.log('cardAddedRemovedObserver');
 		// Determine if the mutation event included an ACTUAL change to the list rather than
 		// a modification caused by this extension making an update to points, etc. (prevents
 		// infinite recursion).
@@ -575,7 +608,8 @@ function List(el){
 		});
 	});
 
-    cardAddedRemovedObserver.observe($list.get(0), obsConfig);
+	//TODO1: Temporarily comment this as it seems not necessary
+    //cardAddedRemovedObserver.observe($list.get(0), obsConfig);
 
 	setTimeout(function(){
 		readCard($list.find("[data-testid='list-card']"));
@@ -583,19 +617,21 @@ function List(el){
 	});
 };
 
+
+
 //.list-card pseudo
-function ListCard(el, identifier){
-	if(el.listCard && el.listCard[identifier]) return;
+function ListCard(el, pointType){
+	if(el.listCard && el.listCard[pointType.pointAttr]) return;
 
 	//lazily create object
 	if (!el.listCard){
 		el.listCard={};
 	}
-	el.listCard[identifier]=this;
+	el.listCard[pointType.pointAttr]=this;
 
 	var points=-1,
-		consumed=identifier!=='points',
-		regexp=consumed?regC:reg,
+		className=pointType.class,
+		regexp=pointType.reg,
 		parsed,
 		that=this,
 		busy=false,
@@ -613,10 +649,11 @@ function ListCard(el, identifier){
 	this._refreshInner=function(){
 		if(busy) return;
 		busy = true;
+		//console.log('refresh card');
 		clearTimeout(to);
 
 		to = setTimeout(function(){
-			var $title=$card.find("[data-testid='card-name']");
+			var $title=$card.find("[data-testid='" + _cardTitleElementDataTestId + "']");
 			if(!$title[0])return;
 			// This expression gets the right value whether Trello has the card-number span in the DOM or not (they recently removed it and added it back).
 			var titleTextContent = (($title[0].childNodes.length > 1) ? $title[0].childNodes[$title[0].childNodes.length-1].textContent : $title[0].textContent);
@@ -629,7 +666,8 @@ function ListCard(el, identifier){
 				// New card title, so we have to parse this new info to find the new amount of points.
 				parsed=titleTextContent.match(regexp);
 				points=parsed?parsed[2]:-1;
-			} else {
+			} 
+			else {
 				// Title text has already been parsed... process the pre-parsed title to get the correct points.
 				var origTitle = $title.data('orig-title');
 				parsed=origTitle.match(regexp);
@@ -638,31 +676,36 @@ function ListCard(el, identifier){
 
 			clearTimeout(to2);
 			to2 = setTimeout(function(){
-				// Add the badge (for this point-type: regular or consumed) to the badges div.
-				$badge
-					.text(that.points)
-					[(consumed?'add':'remove')+'Class']('consumed')
-					.attr({title: 'This card has '+that.points+ (consumed?' consumed':'')+' storypoint' + (that.points == 1 ? '.' : 's.')})
-					.prependTo($card.find("[data-testid='card-front-badges']"));
+			// Add the badge (for this point-type: curly, square or regular) to the badges div.
+			$badge
+				.text(that.points)
+				['addClass'](className)
+				.attr({title: 'This card has '+that.points+ ' ' + pointType.title })
+				.prependTo($card.find("[data-testid='card-front-badges']"));
 
-				// Update the DOM element's textContent and data if there were changes.
-				if(titleTextContent != parsedTitle){
-					$title.data('orig-title', titleTextContent); // store the non-mutilated title (with all of the estimates/time-spent in it).
-				}
-				parsedTitle = $.trim(el._title.replace(reg,'$1').replace(regC,'$1'));
-				el._title = parsedTitle;
-				$title.data('parsed-title', parsedTitle); // save it to the DOM element so that both badge-types can refer back to it.
-				if($title[0].childNodes.length > 1){
-					$title[0].childNodes[$title[0].childNodes.length-1].textContent = parsedTitle; // if they keep the card numbers in the DOM
-				} else {
-					$title[0].textContent = parsedTitle; // if they yank the card numbers out of the DOM again.
-				}
-				var list = $card.closest("[data-testid='list']");
-				if(list[0]){
-					list[0].list.calc();
-				}
-				busy = false;
-			});
+			// Update the DOM element's textContent and data if there were changes.
+			if(titleTextContent != parsedTitle){
+				$title.data('orig-title', titleTextContent); // store the non-mutilated title (with all of the estimates/time-spent in it).
+			}
+			
+			var tempParsedTitle = el._title;
+			for (var i in _pointsTypes){
+				tempParsedTitle = tempParsedTitle.replace(_pointsTypes[i].reg,'$1');
+			}
+			parsedTitle = $.trim(tempParsedTitle);
+			el._title = parsedTitle;
+			$title.data('parsed-title', parsedTitle); // save it to the DOM element so that both badge-types can refer back to it.
+			if($title[0].childNodes.length > 1){
+				$title[0].childNodes[$title[0].childNodes.length-1].textContent = parsedTitle; // if they keep the card numbers in the DOM
+			} else {
+				$title[0].textContent = parsedTitle; // if they yank the card numbers out of the DOM again.
+			}
+			var list = $card.closest("[data-testid='list']");
+			if(list[0]){
+				list[0].list.calc();
+			}
+			busy = false;
+		});
 		});
 	};
 
@@ -685,8 +728,9 @@ function ListCard(el, identifier){
 							var listCardHash = $card.get(0).listCard;
 							if(listCardHash){
 								// The hash contains a ListCard object for each type of points (cpoints, points, possibly more in the future).
-								$.each(_pointsAttr, function(index, pointsAttr){
-									listCardHash[pointsAttr].refresh();
+								$.each(_pointsTypes, function(index, pointType){
+									console.log('refresh card ' + pointType.pointAttr);
+									listCardHash[pointType.pointAttr].refresh();
 								});
 							}
 						}
@@ -696,9 +740,9 @@ function ListCard(el, identifier){
 		});
 	});
 
-	// The MutationObserver is only attached once per card (for the non-consumed-points ListCard) and that Observer will make the call
+	// The MutationObserver is only attached once per card (for the spent-hours ListCard) and that Observer will make the call
 	// to update BOTH types of points-badges.
-	if(!consumed){
+	if(pointType.pointAttr == _pointsObj.pointAttr){
 		var observerConfig = { childList: true, characterData: false, attributes: false, subtree: true };
 		cardShortIdObserver.observe(el, observerConfig);
 	}
@@ -706,64 +750,100 @@ function ListCard(el, identifier){
 	setTimeout(that.refresh);
 };
 
+function showPointTypePicker(pointType, location, $elementToAddPickerTo) {
+	var className = "picker-" + pointType.class;
+	if($(location).find('.' + className).length) return;
+
+	var $picker = $('<div/>', {class: className}).appendTo($elementToAddPickerTo.get(0));
+	$picker.append($('<span>', {class: "picker-title"}).text(pointType.title));
+	
+	var sequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES]).split(',');
+	for (var i in sequence) {
+		$picker.append($('<span>', {class: "point-value " + pointType.class + "-value"}).text(estimateSequence[i]).click(function(){
+			var value = $(this).text();
+			var $text = $('.card-detail-title .edit textarea'); // old text-areas
+			if($text.length == 0){
+				$text = $('textarea.js-card-detail-title-input'); // new text-area
+			}
+			var text = $text.val();
+
+			// replace estimates in card title
+			$text[0].value=text.match(pointType.reg)?text.replace(pointType.reg, '('+value+') '):'('+value+') ' + text;
+
+			// in old-textarea method, click our button so it all gets saved away
+			$(".card-detail-title .edit .js-save-edit").click();
+			// in new-textarea method, have to do a few actions to get it to save after we click away from the card
+			$('textarea.js-card-detail-title-input').click();
+			$('textarea.js-card-detail-title-input').focus();
+
+			return false;
+		}));
+	}
+}
+
 //the story point picker
 function showPointPicker(location) {
-	if($(location).find('.picker').length) return;
+	// if($(location).find('.picker').length) return;
 	
 	// Try to allow this to work with old card style (with save button) or new style (where title is always a textarea).
 	var $elementToAddPickerTo = $('.card-detail-title .edit-controls');
 	if($elementToAddPickerTo.length == 0){
 		$elementToAddPickerTo = $(".js-card-detail-title-input").closest('.window-header');
 	}
+	S4T_SETTINGS[SETTING_NAME_ESTIMATES] = S4T_SETTINGS[SETTING_NAME_ESTIMATES].replace(/ /g, '');
 
-	var $picker = $('<div/>', {class: "picker"}).appendTo($elementToAddPickerTo.get(0));
-	$picker.append($('<span>', {class: "picker-title"}).text("Estimated Points"));
+	for (var pointType in _pointsTypes) {
+		showPointTypePicker(pointType, location, $elementToAddPickerTo);
+	}
+
+	// var $picker = $('<div/>', {class: "picker"}).appendTo($elementToAddPickerTo.get(0));
+	// $picker.append($('<span>', {class: "picker-title"}).text("Estimated Points"));
 	
-	var estimateSequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES].replace(/ /g, '')).split(',');
-	for (var i in estimateSequence) $picker.append($('<span>', {class: "point-value"}).text(estimateSequence[i]).click(function(){
-		var value = $(this).text();
-		var $text = $('.card-detail-title .edit textarea'); // old text-areas
-		if($text.length == 0){
-			$text = $('textarea.js-card-detail-title-input'); // new text-area
-		}
-		var text = $text.val();
+	// var estimateSequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES].replace(/ /g, '')).split(',');
+	// for (var i in estimateSequence) $picker.append($('<span>', {class: "point-value"}).text(estimateSequence[i]).click(function(){
+	// 	var value = $(this).text();
+	// 	var $text = $('.card-detail-title .edit textarea'); // old text-areas
+	// 	if($text.length == 0){
+	// 		$text = $('textarea.js-card-detail-title-input'); // new text-area
+	// 	}
+	// 	var text = $text.val();
 
-		// replace estimates in card title
-		$text[0].value=text.match(reg)?text.replace(reg, '('+value+') '):'('+value+') ' + text;
+	// 	// replace estimates in card title
+	// 	$text[0].value=text.match(reg)?text.replace(reg, '('+value+') '):'('+value+') ' + text;
 
-		// in old-textarea method, click our button so it all gets saved away
-		$(".card-detail-title .edit .js-save-edit").click();
-		// in new-textarea method, have to do a few actions to get it to save after we click away from the card
-		$('textarea.js-card-detail-title-input').click();
-		$('textarea.js-card-detail-title-input').focus();
+	// 	// in old-textarea method, click our button so it all gets saved away
+	// 	$(".card-detail-title .edit .js-save-edit").click();
+	// 	// in new-textarea method, have to do a few actions to get it to save after we click away from the card
+	// 	$('textarea.js-card-detail-title-input').click();
+	// 	$('textarea.js-card-detail-title-input').focus();
 
-		return false;
-	}));
+	// 	return false;
+	// }));
 	
-	if($(location).find('.picker-consumed').length) return;
-	var $pickerConsumed = $('<div/>', {class: "picker-consumed"}).appendTo($elementToAddPickerTo.get(0));
-	$pickerConsumed.append($('<span>', {class: "picker-title"}).text("Consumed Points"));
+	// if($(location).find('.picker-consumed').length) return;
+	// var $pickerConsumed = $('<div/>', {class: "picker-consumed"}).appendTo($elementToAddPickerTo.get(0));
+	// $pickerConsumed.append($('<span>', {class: "picker-title"}).text("Consumed Points"));
 
-	var consumedSequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES]).split(',');
-	for (var i in consumedSequence) $pickerConsumed.append($('<span>', {class: "point-value"}).text(consumedSequence[i]).click(function(){
-		var value = $(this).text();
-		var $text = $('.card-detail-title .edit textarea'); // old text-areas
-		if($text.length == 0){
-			$text = $('textarea.js-card-detail-title-input'); // new text-area
-		}
-		var text = $text.val();
+	// var consumedSequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES]).split(',');
+	// for (var i in consumedSequence) $pickerConsumed.append($('<span>', {class: "point-value"}).text(consumedSequence[i]).click(function(){
+	// 	var value = $(this).text();
+	// 	var $text = $('.card-detail-title .edit textarea'); // old text-areas
+	// 	if($text.length == 0){
+	// 		$text = $('textarea.js-card-detail-title-input'); // new text-area
+	// 	}
+	// 	var text = $text.val();
 
-		// replace consumed value in card title
-		$text[0].value=text.match(regC)?text.replace(regC, ' ['+value+']'):text + ' ['+value+']';
+	// 	// replace consumed value in card title
+	// 	$text[0].value=text.match(regC)?text.replace(regC, ' ['+value+']'):text + ' ['+value+']';
 
-		// in old-textarea method, click our button so it all gets saved away
-		$(".card-detail-title .edit .js-save-edit").click();
-		// in new-textarea method, have to do a few actions to get it to save after we click away from the card
-		$('textarea.js-card-detail-title-input').click();
-		$('textarea.js-card-detail-title-input').focus();
+	// 	// in old-textarea method, click our button so it all gets saved away
+	// 	$(".card-detail-title .edit .js-save-edit").click();
+	// 	// in new-textarea method, have to do a few actions to get it to save after we click away from the card
+	// 	$('textarea.js-card-detail-title-input').click();
+	// 	$('textarea.js-card-detail-title-input').focus();
 
-		return false;
-	}));
+	// 	return false;
+	// }));
 };
 
 

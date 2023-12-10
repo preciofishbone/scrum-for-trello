@@ -1,22 +1,30 @@
 .list-total {
-	color: #006580;
 	font-size: 16px;
 	font-weight: bold;
 	float: right;
 	margin: 0 10px 10px 10px; /* improve alignment */
 	line-height:18px;
 }
-.board-header-btns .list-total{ /* only targets the board totals */
-	line-height:30px;
-	color: #60c5f0;
+.list-total > span {
+	color: #006580;
 }
-
-.list-total .cpoints{
+.list-total > span.curly-points {
+	color: #00d5b5;
+	padding-right: 5px;
+}
+.list-total > span.square-points {
+	padding-right: 5px;
+}
+.list-total > span.regular-points {
 	opacity: 0.5;
 }
-
-.list-total .points {
-	padding-right: 5px;
+.board-header-btns .list-total{ /* only targets the board totals */
+	line-height:30px;
+	color: #0098c2;
+}
+.board-header-btns .list-total > span.regular-points { /* only targets the board totals */
+	opacity: 1;
+	color: #94e6fd;
 }
 
 .list .list-title h2 {
@@ -45,14 +53,21 @@
 	float: right;
 	text-align: right;
 	background-repeat: no-repeat !important;
-	background-position: 3px 3px !important;
-	padding: 0 4px 0 17px !important;
+	background-position: 5px 5px !important;
+	padding: 2px 4px 0 17px !important;
 	border-radius: 3px;
 	font-size: 12px;
 	line-height: 18px;
 }
+.badge-points.curly-points {
+	background-color: #00d5b5 !important;
+	border-color: #015145 !important;
+	border-bottom-color: #004b40 !important;
+}
 
-.picker-consumed,
+.picker-curly-points,
+.picker-square-points,
+.picker-regular-points,
 .picker {
 	float: left;
 	width: 100%;
@@ -82,11 +97,15 @@
 	cursor: pointer;
 }
 
+.point-value.curly-points-value {
+	background-color: #00d5b5 !important;
+}
+
 .badge-points:empty {
 	display: none !important;
 }
 
-.badge-points.consumed{
+.badge-points.regular-points{
 	opacity: 0.5;
 }
 .badge:empty{ display:none !important; }
