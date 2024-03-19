@@ -66,41 +66,10 @@ var _ignoreTrelloElements = [
 	'undefined'
 ]
 
-//default story point picker sequence (can be overridden in the Scrum for Trello 'Settings' popup)
-var _pointSeq = ['?', 0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 20, 40, 100];
-var _curlyPointsObj = {
-	pointAttr: 'curlyPoints',
-	class: 'curly-points',
-	title: 'Planned Est',
-	reg: /((?:^|\s?))\{(\x3f|\d*\.?\d+)(\})\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by {}
-}
-var _squarePointsObj = {
-	pointAttr: 'squarePoints',
-	class: 'square-points',
-	title: 'Dev Est',
-	reg: /((?:^|\s?))\[(\x3f|\d*\.?\d+)(\])\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by []
-}
-var _pointsObj = {
-	pointAttr: 'points',
-	class: 'regular-points',
-	title: 'Spent Hours',
-	reg: /((?:^|\s?))\((\x3f|\d*\.?\d+)(\))\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by ()
-}
-//attributes representing points values for card
-var _pointsTypes = [_pointsObj, _squarePointsObj, _curlyPointsObj];
-
-// All settings and their defaults.
-var S4T_SETTINGS = [];
-var SETTING_NAME_LINK_STYLE = "burndownLinkStyle";
-var SETTING_NAME_ESTIMATES = "estimatesSequence";
-var S4T_ALL_SETTINGS = [SETTING_NAME_LINK_STYLE, SETTING_NAME_ESTIMATES];
-var S4T_SETTING_DEFAULTS = {};
-S4T_SETTING_DEFAULTS[SETTING_NAME_LINK_STYLE] = 'full';
-S4T_SETTING_DEFAULTS[SETTING_NAME_ESTIMATES] = _pointSeq.join();
-
 //internals
 var iconUrl, pointsDoneUrl,
 	flameUrl, flame18Url,
+	estimatedUrl, plannedUrl, burnedUrl,
 	scrumLogoUrl, scrumLogo18Url;
 // FIREFOX_BEGIN_REMOVE
 if(typeof chrome !== 'undefined'){
@@ -112,6 +81,9 @@ if(typeof chrome !== 'undefined'){
     flame18Url = chrome.runtime.getURL('images/burndown_for_trello_icon_18x18.png');
 	scrumLogoUrl = chrome.runtime.getURL('images/trello-scrum-icon_12x12.png');
 	scrumLogo18Url = chrome.runtime.getURL('images/trello-scrum-icon_18x18.png');
+	estimatedUrl = chrome.runtime.getURL('images/estimated_12x12.png');
+	plannedUrl = chrome.runtime.getURL('images/planned_12x12.png');
+	burnedUrl = chrome.runtime.getURL('images/burned_12x12.png');
 	// FIREFOX_BEGIN_REMOVE - This is for firefox review requirements. We can't have code that doesn't run in FF.
 } else if(navigator.userAgent.indexOf('Safari') != -1){ // Chrome defines both "Chrome" and "Safari", so this test MUST be done after testing for Chrome
 	// Works in Safari
@@ -121,9 +93,36 @@ if(typeof chrome !== 'undefined'){
     flame18Url = safari.extension.baseURI + 'images/burndown_for_trello_icon_18x18.png';
 	scrumLogoUrl = safari.extension.baseURI + 'images/trello-scrum-icon_12x12.png';
 	scrumLogo18Url = safari.extension.baseURI + 'images/trello-scrum-icon_18x18.png';
+	estimatedUrl = safari.extension.baseURI + 'images/estimated_12x12.png';
+	plannedUrl = safari.extension.baseURI + 'images/planned_12x12.png';
+	burnedUrl = safari.extension.baseURI + 'images/burned_12x12.png';
 } // FIREFOX_END_REMOVE
 
-refreshSettings(); // get the settings right away (may take a little bit if using Chrome cloud storage)
+
+var _curlyPointsObj = {
+	pointAttr: 'curlyPoints',
+	class: 'curly-points',
+	title: 'Planned Est',
+	iconUrl: estimatedUrl,
+	reg: /((?:^|\s?))\{(\x3f|\d*\.?\d+)(\})\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by {}
+}
+var _squarePointsObj = {
+	pointAttr: 'squarePoints',
+	class: 'square-points',
+	title: 'Dev Est',
+	iconUrl: plannedUrl,
+	reg: /((?:^|\s?))\[(\x3f|\d*\.?\d+)(\])\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by []
+}
+var _pointsObj = {
+	pointAttr: 'points',
+	class: 'regular-points',
+	title: 'Spent Hours',
+	iconUrl: burnedUrl,
+	reg: /((?:^|\s?))\((\x3f|\d*\.?\d+)(\))\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by ()
+}
+
+//attributes representing points values for card
+var _pointsTypes = [_pointsObj, _squarePointsObj, _curlyPointsObj];
 
 function round(_val) {return (Math.round(_val * 100) / 100)};
 
@@ -144,23 +143,13 @@ var CrossBrowser = {
 };
 CrossBrowser.init();
 
-
-
 //what to do when DOM loads
 $(function(){
-	//watch filtering
-	function updateFilters() {
-		setTimeout(calcListPoints);
-	};
 	$('.js-toggle-label-filter, .js-select-member, .js-due-filter, .js-clear-all').off('mouseup');
 	$('.js-toggle-label-filter, .js-select-member, .js-due-filter, .js-clear-all').on('mouseup', calcListPoints);
 	$('.js-input').off('keyup');
 	$('.js-input').on('keyup', calcListPoints);
 	$('.js-share').off('mouseup');
-	$('.js-share').on('mouseup',function(){
-		setTimeout(checkExport,500)
-	});
-
 	calcListPoints();
 });
 
@@ -188,16 +177,6 @@ var recalcTotalsObserver = new CrossBrowser.MutationObserver(function(mutations)
 			// Ignore a bunch of known cases that send mutation events which don't require us to recalcListAndTotal.
 			if (!_ignoreTrelloElements.find(x => $target.hasClass(x) || $target.attr('data-testid') == x) && 
 				($target.attr('data-testid') == null || $target.attr('data-testid').toLowerCase().indexOf('icon') < 0)) {
-					// if($target.hasClass('badge')){
-					// 	if(!$target.hasClass(_pointsObj.class)){
-					// 		console.log('Refresh Just Total: ' + mutation.target.className + " - " + $target.attr('data-testid'));
-					// 		refreshJustTotals = true;
-					// 	}
-					// } else {
-					// 	// It appears this was an actual modification and not a recursive notification.
-					// 	doFullRefresh = true;
-					// }
-					//console.log('Full refresh: ' + mutation.target.className + " - " + $target.attr('data-testid'));
 					doFullRefresh = true;
 			}
 		}
@@ -208,279 +187,15 @@ var recalcTotalsObserver = new CrossBrowser.MutationObserver(function(mutations)
 	} else if(refreshJustTotals){
 		calcListPoints();
 	}
-    
-	// There appears to be a change to have the card-title always be a textarea. We'll allow for either way, to
-	// start (in case this is A/B testing, or they don't keep it). 20160409
-    $editControls = $(".card-detail-title .edit-controls"); // old selector
-	if($editControls.length == 0){
-		$editControls = $(".js-card-detail-title-input.is-editing").closest('.window-header'); // new selector
-	}
-    if($editControls.length > 0)
-    {
-        showPointPicker($editControls.get(0));
-    }
 });
 recalcTotalsObserver.observe(document.body, obsConfig);
 
-// Refreshes the link to the Burndown Chart dialog.
-function updateBurndownLink(){
-    // Add the link for Burndown Charts
-    //$('.s4tLink').remove();
-    if($('.s4tLink').length === 0){
-		var buttons = "";
-
-		// Link for Burndown Charts
-		var linkSetting = S4T_SETTINGS[SETTING_NAME_LINK_STYLE];
-		if(linkSetting !== 'none'){
-			buttons += "<a id='burndownLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
-			buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+flameUrl+"' width='12' height='12'/></span>";
-			if(linkSetting !== 'icon'){
-				buttons += "<span class='text board-header-btn-text'>Burndown Chart</span>";
-			}
-			buttons += "</a>";
-		}
-		// Link for Settings
-		buttons += "<a id='scrumSettingsLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
-		buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+scrumLogoUrl+"' width='12' height='12' title='Settings: Scrum for Trello'/></span>";
-		buttons += "<span class='text board-header-btn-text s4t-text'>Scrum</span>"; // too big :-/ icon only for now
-		buttons += "</a>";
-		var showOnLeft = true;
-		if(showOnLeft){
-			// $('.board-header-btns.mod-left').last().after(buttons);
-			$('.board-header-btns').last().after(buttons);
-		} else {
-			/*$('.board-header-btns.mod-right,#board-header a').last().after(buttons);*/
-			$('.board-header-btns,#board-header a').last().after(buttons);
-		}
-        $('#burndownLink').click(showBurndown);
-		$('#scrumSettingsLink').click(showSettings);
-    }
-}
-
 var ignoreClicks = function(){ return false; };
-function showBurndown()
-{
-    $('body').addClass("window-up");
-    $('.window').css("display", "block").css("top", "50px");
 
-	// Figure out the current user and board.
-	$memberObj = $('.js-open-header-member-menu>div');
-	var username = $memberObj.attr('title').match(/\(([^\)\(]*?)\)$/)[1];
-
-	// Find the short-link board name, etc. so that the back-end can figure out what board this is.
-	var shortLink = document.location.href.match(/b\/([A-Za-z0-9]{8})\//)[1];
-	var boardName = "";
-	boardName = $('.board-name span.text').text().trim();
-
-	// Build the dialog DOM elements. There are no unescaped user-provided strings being used here.
-	var clearfix = $('<div/>', {class: 'clearfix'});
-	var windowHeaderUtils = $('<div/>', {class: 'window-header-utils dialog-close-button'}).append( $('<a/>', {class: 'icon-lg icon-close dark-hover js-close-window', href: '#', title:'Close this dialog window.'}) );
-	var iFrameWrapper = $('<div/>', {style: 'padding:10px; padding-top: 13px;'});
-    var flameIcon = $('<img/>', {style: 'position:absolute; margin-left: 20px; margin-top:15px;', src:flame18Url});
-    
-	var actualIFrame = $('<iframe/>', {frameborder: '0',
-						 style: 'width: 691px; height: 820px;',
-						 id: 'burndownFrame',
-						 src: "https://www.burndownfortrello.com/s4t_burndownPopup.php?username="+encodeURIComponent(username)+"&shortLink="+encodeURIComponent(shortLink)+"&boardName="+encodeURIComponent(boardName)
-						});
-	var loadingFrameIndicator = $('<span/>', {class: 'js-spinner', id: 'loadingBurndownFrame', style: 'position: absolute; left: 225px; top: 260px;'}).append($('<span/>', {class: 'spinner left', style: 'margin-right:4px;'})).append("Loading 'Burndown for Trello'...");
-	iFrameWrapper.append(loadingFrameIndicator); // this will show that the iframe is loading... until it loads.
-	iFrameWrapper.append(actualIFrame);
-    actualIFrame.css("visibility", "hidden");
-	$windowWrapper = $('.window-wrapper');
-    $windowWrapper.click(ignoreClicks);
-	$windowWrapper.empty().append(clearfix).append(flameIcon).append(windowHeaderUtils).append(iFrameWrapper);
-	$('#burndownFrame').load(function(){ $('#loadingBurndownFrame').remove(); actualIFrame.css("visibility", "visible"); }); // once the iframe loads, get rid of the loading indicator.
-	$('.window-header-utils a.js-close-window').click(hideBurndown);
-    //$(window).bind('resize', repositionBurndown);
-    $('.window-overlay').bind('click', hideBurndown);
-    
-    //repositionBurndown();
-}
-
-var settingsFrameId = 'settingsFrame';
-function showSettings()
-{
-    $('body').addClass("window-up");
-    $('.window').css("display", "block").css("top", "50px");
-
-	// Build the dialog DOM elements. There are no unescaped user-provided strings being used here.
-	var clearfix = $('<div/>', {class: 'clearfix'});
-	var windowHeaderUtils = $('<div/>', {class: 'window-header-utils dialog-close-button'}).append( $('<a/>', {class: 'icon-lg icon-close dark-hover js-close-window', href: '#', title:'Close this dialog window.'}) );
-    var settingsIcon = $('<img/>', {style: 'position:absolute; margin-left: 20px; margin-top:15px;', src:scrumLogo18Url});
-
-	// Create the Settings form.
-	{
-		// Load the current settings (with defaults in case Settings haven't been set).
-		var setting_link = S4T_SETTINGS[SETTING_NAME_LINK_STYLE];
-		var setting_estimateSeq = S4T_SETTINGS[SETTING_NAME_ESTIMATES];
-	
-		var settingsDiv = $('<div/>', {style: "font-size: 14px; line-height: 16px; color: #111; font-family: 'Segoe UI', 'Roboto', 'Noto Sans', 'Ubuntu', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif;"});
-
-		var iframeHeader = $('<h2/>', {style: "line-height: 40px; text-align: center;"});
-			iframeHeader.text('Scrum for Trello');
-		
-		var settingsHeader = $('<h3/>', {style: ""});
-			settingsHeader.text('Settings');
-		
-		var settingsInstructions = $('<div/>', {style: "margin-bottom: 1em;"}).html('These settings affect how Scrum for Trello appears to <em>you</em> on all boards.  When you&apos;re done, remember to click "Save Settings" below.');
-		var settingsForm = $('<form/>', {id: 'scrumForTrelloForm'});
-		
-		// How the 'Burndown Chart' link should appear (if at all).
-		var fieldset_burndownLink = $('<fieldset/>');
-		var legend_burndownLink = $('<legend/>');
-		legend_burndownLink.text("Burndown Chart link");
-		var burndownLinkSetting_radioName = 'burndownLinkSetting';
-		fieldset_burndownLink.append(legend_burndownLink);
-			var burndownRadio_full = $('<input/>', {type: 'radio', name: burndownLinkSetting_radioName, id: 'link_full', value: 'full'});
-			if(setting_link == 'full'){
-				burndownRadio_full.prop('checked', true);
-			}
-			var label_full = $('<label/>', {for: 'link_full'});
-			label_full.text('Enable "Burndown Chart" link (recommended)');
-			fieldset_burndownLink.append(burndownRadio_full).append(label_full).append("<br/>");
-
-			var burndownRadio_icon = $('<input/>', {type: 'radio', name: burndownLinkSetting_radioName, id: 'link_icon', value: 'icon'});
-			if(setting_link == 'icon'){
-				burndownRadio_icon.prop('checked', true);
-			}
-			var label_icon = $('<label/>', {for: 'link_icon'});
-			label_icon.text('Icon only');
-			fieldset_burndownLink.append(burndownRadio_icon).append(label_icon).append("<br/>");
-
-			var burndownRadio_none = $('<input/>', {type: 'radio', name: burndownLinkSetting_radioName, id: 'link_none', value: 'none'});
-			if(setting_link == 'none'){
-				burndownRadio_none.prop('checked', true);
-			}
-			var label_none = $('<label/>', {for: 'link_none'});
-			label_none.text('Disable completely');
-			fieldset_burndownLink.append(burndownRadio_none).append(label_none).append("<br/>");
-		
-		// Which estimate buttons should show up.
-		var fieldset_estimateButtons = $('<fieldset/>', {style: "margin: 10px 0"});
-		var legend_estimateButtons = $('<legend/>');
-		legend_estimateButtons.text("Estimate Buttons");
-		fieldset_estimateButtons.append(legend_estimateButtons);
-			var explanation = $('<div/>').text("List out the values you want to appear on the estimate buttons, separated by commas. They can be whole numbers, decimals, or a question mark.");
-			fieldset_estimateButtons.append(explanation);
-			
-			var estimateFieldId = 'pointSequenceToUse';
-			var estimateField = $('<input/>', {id: estimateFieldId, size: 40, val: setting_estimateSeq});
-			fieldset_estimateButtons.append(estimateField);
-			
-			var titleTextStr = "Original sequence is: " + _pointSeq.join();
-			var restoreDefaultsButton = $('<button/>')
-											.text('restore to original values')
-											.attr('title', titleTextStr)
-											.click(function(e){
-												e.preventDefault();
-												$('#'+settingsFrameId).contents().find('#'+estimateFieldId).val(_pointSeq.join());
-											});
-			fieldset_estimateButtons.append(restoreDefaultsButton);
-
-		var saveButton = $('<button/>', {style:""}).text('Save Settings').click(function(e){
-			e.preventDefault();
-
-			// Save the settings (persists them using Chrome cloud, LocalStorage, or Cookies - in that order of preference if available).
-			S4T_SETTINGS[SETTING_NAME_LINK_STYLE] = $('#'+settingsFrameId).contents().find('input:radio[name='+burndownLinkSetting_radioName+']:checked').val();
-			S4T_SETTINGS[SETTING_NAME_ESTIMATES] = $('#'+settingsFrameId).contents().find('#'+estimateFieldId).val();
-
-			// Persist all settings.
-			$.each(S4T_ALL_SETTINGS, function(i, settingName){
-				saveSetting(settingName, S4T_SETTINGS[settingName]);
-			});
-
-			// Allow the UI to update itself as needed.
-			onSettingsUpdated();
-		});
-		var savedIndicator = $('<span/>', {id: 's4tSaved', style: 'color:white; background-color:#59ac44; font-weight:bold; display:none; margin-left:10px; padding: 0.5em;'}).text("Saved");
-
-		// Set up the form (all added down here to be easier to change the order).
-		
-		settingsForm.append(fieldset_burndownLink);
-		settingsForm.append(fieldset_estimateButtons);
-		settingsForm.append(saveButton);
-		settingsForm.append(savedIndicator);
-	}
-	
-	// Quick start instructions.
-	var quickStartDiv = $('<div>\
-		<h3 class="heading">Getting started</h3>\
-		<ol style="">\
-			<li>To add an estimate to a card, first <strong>click a card</strong> to open it</li>\
-			<li><strong>Click the title of the card</strong> to "edit" the title.</li>\
-			<li>Once the Card title is in edit-mode, blue number buttons will appear. <strong>Click one of the buttons</strong> to set that as the estimate.</li>\
-		</ol>\
-	</div>');
-
-	var moreInfoLink = $('<small>For more information, see <a href="http://scrumfortrello.com" target="_blank">ScrumForTrello.com</a></small>');
-
-	// Add each of the components to build the iframe (all done here to make it easier to re-order them).
-	settingsDiv.append(iframeHeader);
-	settingsDiv.append(quickStartDiv);
-	settingsDiv.append(settingsHeader);
-	settingsDiv.append(settingsInstructions);
-	settingsDiv.append(settingsForm);
-	settingsDiv.append(moreInfoLink);
-
-	// Trello swallows normal input, so things like checkboxes and radio buttons don't work right... so we stuff everything in an iframe.
-	var iframeObj = $('<iframe/>', {frameborder: '0',
-						 style: 'width: 670px; height: 528px;', /* 512 was fine on Chrome, but FF requires 528 to avoid scrollbars */
-						 id: settingsFrameId,
-	});
-	$windowWrapper = $('.window-wrapper');
-    $windowWrapper.click(ignoreClicks);
-	$windowWrapper.empty().append(clearfix).append(settingsIcon).append(windowHeaderUtils);
-
-	iframeObj.appendTo($windowWrapper);
-
-	// Firefox wil load the iframe (even if there is no 'src') and overwrite the existing HTML, so we've
-	// reworked this to load about:blank then set our HTML upon load completion.
-	iframeObj.load(function(){
-		iframeObj.contents().find('body').append(settingsDiv);
-	});
-	iframeObj.attr('src', "about:blank"); // need to set this AFTER the .load() has been registered.
-	
-	$('.window-header-utils a.js-close-window').click(hideBurndown);
-    //$(window).bind('resize', repositionBurndown);
-    $('.window-overlay').bind('click', hideBurndown);
-
-	//repositionBurndown();
-}
-
-function hideBurndown()
-{
-    $('body').removeClass("window-up");
-    $('.window').css("display", "none");
-    //$(window).unbind('resize', repositionBurndown);
-	$('.window-header-utils a.js-close-window').unbind('click', hideBurndown);
-	$('.window-wrapper').unbind('click', ignoreClicks);
-    $('.window-overlay').unbind('click', hideBurndown);
-}
-
-// NOTE: With the most recent Trello update, I don't think we have to position the window manually anymore.
-// If that changes, restore the function AND uncomment the calls to it.
-//function repositionBurndown()
-//{
-    //windowWidth = $(window).width();
-    //if(windowWidth < 0) // todo change this to a n actual number (probably 710 or so)
-    //{
-    //    // todo shrink our iframe to an appropriate size.  contents should wrap
-    //}
-    //else
-    //{
-    //    burndownWindowWidth = 690;
-    //    leftPadding = (windowWidth - burndownWindowWidth) / 2.0;
-    //    $('.window').css("left", leftPadding);
-    //}
-//}
-
-// Calculate board totals
 var ctto;
 function computeTotal(){
 	clearTimeout(ctto);
 	ctto = setTimeout(function(){
-		// var $title = $('.board-header-btns.mod-right,#board-header a');
 		var $title = $('.board-header-btns,#board-header a');
 		var $total = $title.children('.list-total').empty();
 		if ($total.length == 0)
@@ -492,11 +207,15 @@ function computeTotal(){
 			$('#board .list-total .'+pointType.class).each(function(){
 				score+=parseFloat(this.textContent)||0;
 			});
-			var scoreSpan = $('<span/>', {class: pointType.class}).text(round(score)||'');
-			$total.prepend(scoreSpan);
+			$total.prepend($('<span/>', {class: pointType.class})
+							.text(round(score)||'')
+							.attr({title: 'Total of '+pointType.title }));
 		}
-        
-        updateBurndownLink(); // the burndown link and the total are on the same bar... so now they'll be in sync as to whether they're both there or not.
+		
+		let cardCount = $("#board [data-testid='list-card']:not(.placeholder)").length || 0;
+		$total.append($('<span/>',{class: 'card-count'})
+						.text(cardCount)
+						.attr({title: 'Total of cards'}));
 	});
 };
 
@@ -518,7 +237,7 @@ function List(el){
 	el.list=this;
 
 	var $list=$(el),
-		$total=$('<span class="list-total">'),
+		$total=$('<span class="o-list-header list-total">'),
 		busy = false,
 		to;
 
@@ -543,11 +262,11 @@ function List(el){
 	this.calc = debounce(function(){
 		self._calcInner();
     }, 500, true); // executes right away unless over its 500ms threshold since the last execution
+
 	this._calcInner	= function(e){ // don't call this directly. Call calc() instead.
-		//if(e&&e.target&&!$(e.target).hasClass('list-card')) return; // TODO: REMOVE - What was this? We never pass a param into this function.
 		clearTimeout(to);
 		to = setTimeout(function(){
-			$total.empty().appendTo($list.find("[data-testid='list-title'],[data-testid='list-header']"));
+			$total.empty().insertAfter($list.find("[data-testid='list-title'],[data-testid='list-header']"));
 			for (var i in _pointsTypes){
 				var score=0,
 					pointType = _pointsTypes[i];
@@ -561,15 +280,22 @@ function List(el){
 					}
 				});
 				var scoreTruncated = round(score);
-				var scoreSpan = $('<span/>', {class: pointType.class}).text( (scoreTruncated>0) ? scoreTruncated : '' );
-				$total.prepend(scoreSpan);
-				computeTotal();
+				if(scoreTruncated > 0)
+				{
+					$total.prepend($('<span/>', {class: pointType.class})
+								.text((scoreTruncated>=0) ? scoreTruncated : '' )
+								.attr({title: pointType.title + ' in list' }));
+					computeTotal();
+				}
+			}
+			let cardCount = $list.find("[data-testid='list-card']:not(.placeholder)").length || 0;
+			if(cardCount > 0){
+				$total.append($('<span/>', {class: 'card-count'}).text(cardCount).attr({title: 'No of cards in list'}));
 			}
 		});
 	};
     
     this.refreshList = debounce(function(){
-		//console.log('refresh list ' + $list.parent().attr('data-list-id'));
         readCard($list.find("[data-testid='list-card']:not(.placeholder)"));
         this.calc(); // readCard will call this.calc() if any of the cards get refreshed.
     }, 500, false);
@@ -608,16 +334,11 @@ function List(el){
 		});
 	});
 
-	//TODO1: Temporarily comment this as it seems not necessary
-    //cardAddedRemovedObserver.observe($list.get(0), obsConfig);
-
 	setTimeout(function(){
 		readCard($list.find("[data-testid='list-card']"));
 		setTimeout(el.list.calc);
 	});
 };
-
-
 
 //.list-card pseudo
 function ListCard(el, pointType){
@@ -636,7 +357,7 @@ function ListCard(el, pointType){
 		that=this,
 		busy=false,
 		$card=$(el),
-		$badge=$('<div class="badge badge-points point-count" style="background-image: url('+iconUrl+')"/>'),
+		$badge=$('<div class="badge badge-points point-count" style="background-image: url('+pointType.iconUrl+')"/>'),
 		to,
 		to2;
 
@@ -750,288 +471,4 @@ function ListCard(el, pointType){
 	setTimeout(that.refresh);
 };
 
-function showPointTypePicker(pointType, location, $elementToAddPickerTo) {
-	var className = "picker-" + pointType.class;
-	if($(location).find('.' + className).length) return;
-
-	var $picker = $('<div/>', {class: className}).appendTo($elementToAddPickerTo.get(0));
-	$picker.append($('<span>', {class: "picker-title"}).text(pointType.title));
-	
-	var sequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES]).split(',');
-	for (var i in sequence) {
-		$picker.append($('<span>', {class: "point-value " + pointType.class + "-value"}).text(estimateSequence[i]).click(function(){
-			var value = $(this).text();
-			var $text = $('.card-detail-title .edit textarea'); // old text-areas
-			if($text.length == 0){
-				$text = $('textarea.js-card-detail-title-input'); // new text-area
-			}
-			var text = $text.val();
-
-			// replace estimates in card title
-			$text[0].value=text.match(pointType.reg)?text.replace(pointType.reg, '('+value+') '):'('+value+') ' + text;
-
-			// in old-textarea method, click our button so it all gets saved away
-			$(".card-detail-title .edit .js-save-edit").click();
-			// in new-textarea method, have to do a few actions to get it to save after we click away from the card
-			$('textarea.js-card-detail-title-input').click();
-			$('textarea.js-card-detail-title-input').focus();
-
-			return false;
-		}));
-	}
-}
-
-//the story point picker
-function showPointPicker(location) {
-	// if($(location).find('.picker').length) return;
-	
-	// Try to allow this to work with old card style (with save button) or new style (where title is always a textarea).
-	var $elementToAddPickerTo = $('.card-detail-title .edit-controls');
-	if($elementToAddPickerTo.length == 0){
-		$elementToAddPickerTo = $(".js-card-detail-title-input").closest('.window-header');
-	}
-	S4T_SETTINGS[SETTING_NAME_ESTIMATES] = S4T_SETTINGS[SETTING_NAME_ESTIMATES].replace(/ /g, '');
-
-	for (var pointType in _pointsTypes) {
-		showPointTypePicker(pointType, location, $elementToAddPickerTo);
-	}
-
-	// var $picker = $('<div/>', {class: "picker"}).appendTo($elementToAddPickerTo.get(0));
-	// $picker.append($('<span>', {class: "picker-title"}).text("Estimated Points"));
-	
-	// var estimateSequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES].replace(/ /g, '')).split(',');
-	// for (var i in estimateSequence) $picker.append($('<span>', {class: "point-value"}).text(estimateSequence[i]).click(function(){
-	// 	var value = $(this).text();
-	// 	var $text = $('.card-detail-title .edit textarea'); // old text-areas
-	// 	if($text.length == 0){
-	// 		$text = $('textarea.js-card-detail-title-input'); // new text-area
-	// 	}
-	// 	var text = $text.val();
-
-	// 	// replace estimates in card title
-	// 	$text[0].value=text.match(reg)?text.replace(reg, '('+value+') '):'('+value+') ' + text;
-
-	// 	// in old-textarea method, click our button so it all gets saved away
-	// 	$(".card-detail-title .edit .js-save-edit").click();
-	// 	// in new-textarea method, have to do a few actions to get it to save after we click away from the card
-	// 	$('textarea.js-card-detail-title-input').click();
-	// 	$('textarea.js-card-detail-title-input').focus();
-
-	// 	return false;
-	// }));
-	
-	// if($(location).find('.picker-consumed').length) return;
-	// var $pickerConsumed = $('<div/>', {class: "picker-consumed"}).appendTo($elementToAddPickerTo.get(0));
-	// $pickerConsumed.append($('<span>', {class: "picker-title"}).text("Consumed Points"));
-
-	// var consumedSequence = (S4T_SETTINGS[SETTING_NAME_ESTIMATES]).split(',');
-	// for (var i in consumedSequence) $pickerConsumed.append($('<span>', {class: "point-value"}).text(consumedSequence[i]).click(function(){
-	// 	var value = $(this).text();
-	// 	var $text = $('.card-detail-title .edit textarea'); // old text-areas
-	// 	if($text.length == 0){
-	// 		$text = $('textarea.js-card-detail-title-input'); // new text-area
-	// 	}
-	// 	var text = $text.val();
-
-	// 	// replace consumed value in card title
-	// 	$text[0].value=text.match(regC)?text.replace(regC, ' ['+value+']'):text + ' ['+value+']';
-
-	// 	// in old-textarea method, click our button so it all gets saved away
-	// 	$(".card-detail-title .edit .js-save-edit").click();
-	// 	// in new-textarea method, have to do a few actions to get it to save after we click away from the card
-	// 	$('textarea.js-card-detail-title-input').click();
-	// 	$('textarea.js-card-detail-title-input').focus();
-
-	// 	return false;
-	// }));
-};
-
-
-//for export
-var $excel_btn,$excel_dl;
 window.URL = window.URL || window.webkitURL;
-
-function checkExport() {
-	if($excel_btn && $excel_btn.filter(':visible').length) return;
-	if($('.pop-over-list').find('.js-export-excel').length) return;
-	var $js_btn = $('.pop-over-list').find('.js-export-json');
-	var $ul = $js_btn.closest('ul:visible');
-	if(!$js_btn.length) return;
-	$js_btn.parent().after($('<li>').append(
-		$excel_btn = $('<a href="#" target="_blank" title="Open downloaded file with Excel">Excel</a>')
-			.click(showExcelExport)
-		))
-};
-
-function showExcelExport() {
-	$excel_btn.text('Generating...');
-
-	$.getJSON($('.pop-over-list').find('.js-export-json').attr('href'), function(data) {
-		var s = '<table id="export" border=1>';
-		s += '<tr><th>Points</th><th>Story</th><th>Description</th></tr>';
-		$.each(data['lists'], function(key, list) {
-			var list_id = list["id"];
-			s += '<tr><th colspan="3">' + list['name'] + '</th></tr>';
-
-			$.each(data["cards"], function(key, card) {
-				if (card["idList"] == list_id) {
-					var title = card["name"];
-					var parsed = title.match(reg);
-					var points = parsed?parsed[1]:'';
-					title = title.replace(reg,'');
-					s += '<tr><td>'+ points + '</td><td>' + title + '</td><td>' + card["desc"] + '</td></tr>';
-				}
-			});
-			s += '<tr><td colspan=3></td></tr>';
-		});
-		s += '</table>';
-
-		var blob = new Blob([s],{type:'application/ms-excel'});
-
-		var board_title_reg =  /.*\/(.*)$/;
-		var board_title_parsed = document.location.href.match(board_title_reg);
-		var board_title = board_title_parsed[1];
-
-		$excel_btn
-			.text('Excel')
-			.after(
-				$excel_dl=$('<a>')
-					.attr({
-						download: board_title + '.xls',
-						href: window.URL.createObjectURL(blob)
-					})
-			);
-
-		var evt = document.createEvent('MouseEvents');
-		evt.initMouseEvent('click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-		$excel_dl[0].dispatchEvent(evt);
-		$excel_dl.remove()
-
-	});
-
-	return false
-};
-
-// for settings
-
-function useChromeStorage(){
-	return ((typeof chrome !== "undefined") && (typeof chrome.storage !== "undefined"));
-}
-
-/**
- * Saves the Setting (defined by 'settingName') to be whatever is in 'settingValue'.
- *
- * This will use Chrome cloud-storage if available, then will fall back to LocalStorage
- * if possible and fall back to cookies otherwise.
- *
- * NOTE: Remember to enver store confidential or user information in Chrome cloud
- * storage (it's not encrypted).
- */
-function saveSetting(settingName, settingValue){
-	// Use Chrome cloud storage where available (will sync across multiple computers).
-	if(useChromeStorage()){
-		var objectToPersist = {}; // can't use an object-literal to do it, or chrome will make an object whose key is literally 'settingName'
-		objectToPersist[settingName] = settingValue;
-		chrome.storage.sync.set(objectToPersist, function() {
-			// console.log("Chrome saved " + settingName + ".");
-		});
-	} else if(typeof(Storage) !== "undefined"){
-		localStorage[settingName] = settingValue;
-	} else {
-		// No LocalStorage support... use cookies instead.
-		setCookie(settingName, settingValue);
-	}
-} // end saveSetting()
-
-/**
- * Retrieves the Setting defined by 'settingName'. The 'defaultValue' is optional.
- *
- * This will use LocalStorage if possible and fall back to cookies otherwise. Typically
- * this function will only be used if Chrome cloud storage is not available.
- */
-function getSetting(settingName, defaultValue){
-	var retVal = defaultValue;
-	if(typeof(Storage) !== "undefined"){
-		var lsValue = localStorage[settingName];
-		if(typeof lsValue !== 'undefined'){
-			retVal = lsValue;
-		}
-	} else {
-		// No LocalStorage support... use cookies instead.
-		retVal = getCookie(settingName, defaultValue);
-	}
-	return retVal;
-}; // end getSetting()
-
-/**
- * Refreshes all of the persisted settings and puts them in memory. This is
- * done at the beginning, and any time chrome cloud-storage sends an event
- * that the data has changed.
- */
-function refreshSettings(){
-	if(useChromeStorage()){
-		chrome.storage.sync.get(S4T_ALL_SETTINGS, function(result){
-			//if(chrome.runtime.lastError){}
-			$.each(S4T_ALL_SETTINGS, function(i, settingName){
-				if(result[settingName]){
-					S4T_SETTINGS[settingName] = result[settingName];
-				} else {
-					S4T_SETTINGS[settingName] = S4T_SETTING_DEFAULTS[settingName];
-				}
-			});
-			onSettingsUpdated();
-		});
-	} else {
-		// Get the settings (with defaults for each). Add a new line here for every new setting.
-		$.each(S4T_ALL_SETTINGS, function(i, settingName){
-			S4T_SETTINGS[settingName] = getSetting(settingName, S4T_SETTING_DEFAULTS[settingName]);
-		});
-		onSettingsUpdated();
-	}
-}; // end refreshSettings()
-
-function onSettingsUpdated(){
-	// Temporary indication to the user that the settings were saved (might not always be on screen, but that's not a problem).
-	$('#'+settingsFrameId).contents().find('#s4tSaved').show().fadeOut(2000, "linear");
-	
-	// Refresh the links because link-settings may have changed.
-	$('.s4tLink').remove();
-	updateBurndownLink();
-} // end onSettingsUpdated()
-
-/**
- * Sets a key/value cookie to live for about a year. Cookies are typically not used by
- * this extension if LocalSettings is available in the browser.
- * From: http://www.w3schools.com/js/js_cookies.asp
- */
-function setCookie(c_name,value){
-	var exdays = 364;
-	var exdate=new Date();
-	exdate.setDate(exdate.getDate() + exdays);
-	var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
-	document.cookie=c_name + "=" + c_value;
-}; // end setCookie()
-
-/**
- * Gets a cookie value if available (defaultValue if not found). Cookies are typically not\
- * used by this extension if LocalSettings is available in the browser.
- * Basically from: http://www.w3schools.com/js/js_cookies.asp
- */
-function getCookie(c_name, defaultValue){
-	var c_value = document.cookie;
-	var c_start = c_value.indexOf(" " + c_name + "=");
-	if (c_start == -1){
-		c_start = c_value.indexOf(c_name + "=");
-	}
-	if (c_start == -1){
-		c_value = defaultValue;
-	} else {
-		c_start = c_value.indexOf("=", c_start) + 1;
-		var c_end = c_value.indexOf(";", c_start);
-		if (c_end == -1) {
-			c_end = c_value.length;
-		}
-		c_value = unescape(c_value.substring(c_start,c_end));
-	}
-	return c_value;
-}; // end getCookie()

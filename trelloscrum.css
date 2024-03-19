@@ -1,3 +1,7 @@
+
+.o-list-header{
+	margin-top: 5px !important;
+}
 .list-total {
 	font-size: 16px;
 	font-weight: bold;
@@ -6,17 +10,35 @@
 	line-height:18px;
 }
 .list-total > span {
-	color: #006580;
+	margin: 4px 2px;
+	padding: 2px 5px;
+	border-radius: 4px;
 }
 .list-total > span.curly-points {
-	color: #00d5b5;
-	padding-right: 5px;
+	color: white !important;
+	font-weight: 500;
+	background-color: slateblue/*#006580*/ !important;
 }
 .list-total > span.square-points {
-	padding-right: 5px;
+	color: white !important;
+	font-weight: 500;
+	background-color: teal/*#006580*/ !important;
 }
 .list-total > span.regular-points {
-	opacity: 0.5;
+	color: white !important;
+	font-weight: 500;
+	background-color: darkgoldenrod /*#00d5b5*/ !important;
+}
+.list-total > span.card-count {
+	color: white !important;
+	font-weight: 500;
+	background-color: rgb(51, 51, 51) /*#00d5b5*/ !important;
+}
+.list-total > span:empty {
+	color:inherit;
+	margin: 0;
+	padding:0;
+	border-radius: 0;
 }
 .board-header-btns .list-total{ /* only targets the board totals */
 	line-height:30px;
@@ -46,23 +68,34 @@
 }
 
 .badge-points {
-	background-color: #006580 !important;
-	border-color: #005b72 !important;
-	border-bottom-color: #004b5f !important;
-	color: #e1fafb !important;
+	color: white !important;
 	float: right;
 	text-align: right;
 	background-repeat: no-repeat !important;
 	background-position: 5px 5px !important;
-	padding: 2px 4px 0 17px !important;
+	padding: 2px 4px 0 19px !important;
 	border-radius: 3px;
 	font-size: 12px;
 	line-height: 18px;
 }
+.badge-points:empty {
+	display: none !important;
+}
+.badge-points.square-points{
+	color: white !important;
+	font-weight: 500;
+	background-color: teal/*#006580*/ !important;
+}
 .badge-points.curly-points {
-	background-color: #00d5b5 !important;
-	border-color: #015145 !important;
-	border-bottom-color: #004b40 !important;
+	color: white !important;
+	font-weight: 500;
+	background-color: slateblue /*#00d5b5*/ !important;
+}
+.badge-points.regular-points{
+	color: white !important;
+	font-weight: 500;
+	background-color: darkgoldenrod /*#00d5b5*/ !important;
+	/* opacity: 0.5; */
 }
 
 .picker-curly-points,
@@ -98,16 +131,10 @@
 }
 
 .point-value.curly-points-value {
-	background-color: #00d5b5 !important;
+	background-color: red /*#00d5b5*/ !important;
+	
 }
 
-.badge-points:empty {
-	display: none !important;
-}
-
-.badge-points.regular-points{
-	opacity: 0.5;
-}
 .badge:empty{ display:none !important; }
 
 /* == b4t integration==*/
