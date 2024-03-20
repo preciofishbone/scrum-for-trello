@@ -18,7 +18,8 @@
 				"/images/trello-scrum-icon_18x18.png",
 				"/images/light-bulb-svgrepo-com.svg",
 				"/images/wrench-svgrepo-com.svg",
-				"/images/clipboard-svgrepo-com.svg"
+				"/images/clipboard-svgrepo-com.svg",
+				"/images/keynote-presentation-svgrepo-com.svg"
 			],
 		"matches": ["<all_urls>"]
 		}
