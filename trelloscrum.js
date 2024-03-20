@@ -46,7 +46,7 @@ var debounce = function (func, threshold, execAsap) {
 // For MutationObserver
 var obsConfig = { childList: true, characterData: true, attributes: false, subtree: true };
 
-var _cardTitleElementDataTestId = 'card-name';
+
 var _ignoreTrelloElements = [
 	'list',
 	'list-total', 
@@ -68,7 +68,8 @@ var _ignoreTrelloElements = [
 
 //internals
 var iconUrl, pointsDoneUrl,
-	estimatedUrl, plannedUrl, burnedUrl;
+	estimatedUrl, plannedUrl, burnedUrl,
+	summaryUrl;
 
 // FIREFOX_BEGIN_REMOVE
 if(typeof chrome !== 'undefined'){
@@ -78,6 +79,7 @@ if(typeof chrome !== 'undefined'){
 	estimatedUrl = chrome.runtime.getURL('images/light-bulb-svgrepo-com.svg');
 	plannedUrl = chrome.runtime.getURL('images/clipboard-svgrepo-com.svg');
 	burnedUrl = chrome.runtime.getURL('images/wrench-svgrepo-com.svg');
+	summaryUrl = chrome.runtime.getURL('images/keynote-presentation-svgrepo-com.svg');
 	// FIREFOX_BEGIN_REMOVE - This is for firefox review requirements. We can't have code that doesn't run in FF.
 } else if(navigator.userAgent.indexOf('Safari') != -1){ // Chrome defines both "Chrome" and "Safari", so this test MUST be done after testing for Chrome
 	// Works in Safari
@@ -85,6 +87,7 @@ if(typeof chrome !== 'undefined'){
 	estimatedUrl = safari.extension.baseURI + 'images/light-bulb-svgrepo-com.svg';
 	plannedUrl = safari.extension.baseURI + 'images/clipboard-svgrepo-com.svg';
 	burnedUrl = safari.extension.baseURI + 'images/wrench-svgrepo-com.svg';
+	summaryUrl = safari.extension.baseURI + 'images/align-objects-bottom-svgrepo-com.svg';
 } // FIREFOX_END_REMOVE
 
 
@@ -109,9 +112,28 @@ var _pointsObj = {
 	iconUrl: burnedUrl,
 	reg: /((?:^|\s?))\((\x3f|\d*\.?\d+)(\))\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by ()
 }
+var _cardCountObj ={
+	pointAttr: 'cardCount',
+	class: 'card-count',
+	title: 'Cards',
+	iconUrl: iconUrl,
+	reg: null
+}
+
+const _listColors =[
+	{	styleColor: "gray", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false } ,
+	{	styleColor: "green", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false	} ,
+	{	styleColor: "yellow", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+	{	styleColor: "orange", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+	{	styleColor: "red", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+	{	styleColor: "purple", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+	{	styleColor: "blue", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+	{	styleColor: "teal", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+	{	styleColor: "magenta", curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0, inUse: false },
+];
 
 //attributes representing points values for card
-var _pointsTypes = [_pointsObj, _squarePointsObj, _curlyPointsObj];
+var _pointsTypes = [_cardCountObj, _pointsObj, _squarePointsObj, _curlyPointsObj];
 
 function round(_val) {return (Math.round(_val * 100) / 100)};
 
@@ -181,30 +203,70 @@ recalcTotalsObserver.observe(document.body, obsConfig);
 
 var ignoreClicks = function(){ return false; };
 
+
 var ctto;
 function computeTotal(){
 	clearTimeout(ctto);
 	ctto = setTimeout(function(){
 		var $title = $('.board-header-btns,#board-header a');
-		var $total = $title.children('.list-total').empty();
+		var $totalWrapper = $title.children('.o-list-total-wrapper');
+		if($totalWrapper.length == 0){
+			$totalWrapper = $('<div/>', {class: "o-list-total-wrapper"}).prependTo($title);
+		}
+		var $total = $totalWrapper.children('.list-total').empty();
 		if ($total.length == 0)
-			$total = $('<span/>', {class: "list-total"}).prependTo($title);
+			$total = $('<span/>', {class: "list-total"}).prependTo($totalWrapper);
 
 		for (var i in _pointsTypes){
 			var score = 0,
 				pointType = _pointsTypes[i];
+
 			$('#board .list-total .'+pointType.class).each(function(){
 				score+=parseFloat(this.textContent)||0;
 			});
+
 			$total.prepend($('<span/>', {class: pointType.class})
 							.text(round(score)||'')
 							.attr({title: 'Total of '+pointType.title }));
 		}
-		
-		let cardCount = $("#board [data-testid='list-card']:not(.placeholder)").length || 0;
-		$total.append($('<span/>',{class: 'card-count'})
-						.text(cardCount)
-						.attr({title: 'Total of cards'}));
+
+		_listColors.forEach(function(listColor){
+			listColor.cardCount = 0;
+			listColor.curlyPoints = 0;
+			listColor.squarePoints = 0;
+			listColor.points = 0;
+			listColor.inUse = false;
+		});
+
+		// For each list in board
+		$("#board [data-testid='list']").each(function(_, el){
+			const styleOnList = $(el).attr("style") || "";
+			_listColors.forEach(function(listColor){
+				if((listColor.styleColor == "gray" 
+					&& (!styleOnList || styleOnList == "")) 
+					|| styleOnList.indexOf("var(--ds-background-accent-" +listColor.styleColor+ "-subtler)") > -1)
+				{
+					listColor.inUse = true;
+					listColor.cardCount += +($(el).find('.list-total .card-count').text() || 0);
+					listColor.curlyPoints += +($(el).find('.list-total .'+_curlyPointsObj.class).text() || 0);
+					listColor.squarePoints += +($(el).find('.list-total .'+_squarePointsObj.class).text() || 0);
+					listColor.points += +($(el).find('.list-total .'+_pointsObj.class).text() || 0);
+				}
+			});
+		});
+
+		if($totalWrapper.find('.o-button').length == 0)
+		{
+			($('<button/>')
+				.attr('title', 'Show summary')
+				.addClass("board-header-btn o-button")
+				.on('click', showSummaryDialog)
+				.append($("<span/>")
+					.addClass("o-button-icon")
+					.attr('style', "mask-image: url("+summaryUrl+")")))
+				.prependTo($totalWrapper);
+
+		}
 	});
 };
 
@@ -252,35 +314,51 @@ function List(el){
 		self._calcInner();
     }, 500, true); // executes right away unless over its 500ms threshold since the last execution
 
+
 	this._calcInner	= function(e){ // don't call this directly. Call calc() instead.
 		clearTimeout(to);
 		to = setTimeout(function(){
 			$total.empty().insertAfter($list.find("[data-testid='list-title'],[data-testid='list-header']"));
 			for (var i in _pointsTypes){
-				var score=0,
-					pointType = _pointsTypes[i];
-				$list.find("[data-testid='list-card']:not(.placeholder)").each(function(){
-					if(!this.listCard) return;
-					if(!isNaN(Number(this.listCard[pointType.pointAttr].points))){
-						// Performance note: calling :visible in the selector above leads to noticible CPU usage.
-						if(jQuery.expr.filters.visible(this)){
-							score+=Number(this.listCard[pointType.pointAttr].points);
-						}
-					}
-				});
+				let score = 0;
+				let pointType = _pointsTypes[i];
+				if(pointType.reg){
+					$list.find("[data-testid='list-card']:not(.placeholder)")
+						.each(function(_, el){
+							if(!el.listCard) 
+							{
+								return;
+							}
+							if(!isNaN(Number(el.listCard[pointType.pointAttr].points))){
+								// Performance note: calling :visible in the selector above leads to noticible CPU usage.
+								if(jQuery.expr.filters.visible(el)){
+									score+=Number(el.listCard[pointType.pointAttr].points);
+								}
+							}
+						});
+				}
+				else{
+					$list.find("[data-testid='list-card']:not(.placeholder)")
+						.each(function(_, el){
+							if(!el.listCard) 
+							{
+								return;
+							}
+							if(jQuery.expr.filters.visible(el)){
+								score++;
+							}
+						});
+				}
+
 				var scoreTruncated = round(score);
 				if(scoreTruncated > 0)
 				{
 					$total.prepend($('<span/>', {class: pointType.class})
 								.text((scoreTruncated>=0) ? scoreTruncated : '' )
 								.attr({title: pointType.title + ' in list' }));
-					computeTotal();
 				}
 			}
-			let cardCount = $list.find("[data-testid='list-card']:not(.placeholder)").length || 0;
-			if(cardCount > 0){
-				$total.append($('<span/>', {class: 'card-count'}).text(cardCount).attr({title: 'No of cards in list'}));
-			}
+			computeTotal();
 		});
 	};
     
@@ -291,7 +369,6 @@ function List(el){
 
 	var cardAddedRemovedObserver = new CrossBrowser.MutationObserver(function(mutations)
 	{
-		console.log('cardAddedRemovedObserver');
 		// Determine if the mutation event included an ACTUAL change to the list rather than
 		// a modification caused by this extension making an update to points, etc. (prevents
 		// infinite recursion).
@@ -357,14 +434,25 @@ function ListCard(el, pointType){
 		self._refreshInner();
     }, 250, true); // executes right away unless over its 250ms threshold
 	this._refreshInner=function(){
-		if(busy) return;
+		if(busy) {
+			return;
+		}
+		
 		busy = true;
-		//console.log('refresh card');
 		clearTimeout(to);
 
 		to = setTimeout(function(){
-			var $title=$card.find("[data-testid='" + _cardTitleElementDataTestId + "']");
-			if(!$title[0])return;
+			var $title=$card.find("[data-testid='card-name']");
+			if(!$title[0]){
+				busy = false;
+				return;
+			}
+
+			if(!regexp){
+				busy = false;
+				return;
+			}
+
 			// This expression gets the right value whether Trello has the card-number span in the DOM or not (they recently removed it and added it back).
 			var titleTextContent = (($title[0].childNodes.length > 1) ? $title[0].childNodes[$title[0].childNodes.length-1].textContent : $title[0].textContent);
 			if(titleTextContent) el._title = titleTextContent;
@@ -446,7 +534,6 @@ function ListCard(el, pointType){
 							if(listCardHash){
 								// The hash contains a ListCard object for each type of points (cpoints, points, possibly more in the future).
 								$.each(_pointsTypes, function(index, pointType){
-									console.log('refresh card ' + pointType.pointAttr);
 									listCardHash[pointType.pointAttr].refresh();
 								});
 							}
@@ -466,5 +553,63 @@ function ListCard(el, pointType){
 
 	setTimeout(that.refresh);
 };
+
+function showSummaryDialog(){
+	var $dialog=$(`<div id="oSummaryModal" class="modal"/>`).appendTo('body');
+	var $content=$(`<div class="modal-content"/>`).appendTo($dialog);
+	var $header=$(`<div class="modal-header"/>`).appendTo($content);
+
+	$header.append($('<div class="o-header"><span class="o-header-icon" style="mask-image: url('+ summaryUrl +')"></span><h2>Summary</h2></div>'));
+	$header.append($('<span class="close">&times;</span>').on('click', function(){
+		$("body").find("#oSummaryModal").remove();
+	}));
+
+	$modalBody = $(`<div class="modal-body o-summary"/>`).appendTo($content);
+	$modalBody.append(
+		$(`<div class="o-summary-row o-summary-header-row"/>`)
+			.append($(`<div class="o-summary-item o-summary-header-item-empty"/>`))
+			.append($(`<div class="o-summary-item o-summary-header-item"/>`).text("Planned Est"))
+			.append($(`<div class="o-summary-item o-summary-header-item"/>`).text("Dev Est"))
+			.append($(`<div class="o-summary-item o-summary-header-item"/>`).text("Spent Hours"))
+			.append($(`<div class="o-summary-item o-summary-header-item"/>`).text("Cards"))
+		);
+
+	let total = {	curlyPoints: 0, squarePoints: 0, points: 0, cardCount: 0 };
+
+	_listColors.forEach(function(listColor){
+		if(listColor.inUse){
+			total.curlyPoints += listColor.curlyPoints;
+			total.squarePoints += listColor.squarePoints;
+			total.points += listColor.points;
+			total.cardCount += listColor.cardCount;
+
+			$modalBody.append(
+				$(`<div class="o-summary-row o-summary-item-row"/>`)
+					.append($(`<div class="o-summary-item o-summary-row-item-color"/>`).attr("style", "background-color: var(--ds-background-accent-" + listColor.styleColor + "-subtler);"))
+					.append($(`<div class="o-summary-item o-summary-row-item"/>`).text(listColor.curlyPoints))
+					.append($(`<div class="o-summary-item o-summary-row-item"/>`).text(listColor.squarePoints))
+					.append($(`<div class="o-summary-item o-summary-row-item"/>`).text(listColor.points))
+					.append($(`<div class="o-summary-item o-summary-row-item"/>`).text(listColor.cardCount))
+			);
+		
+		}
+	});
+
+	$modalBody.append(
+		$(`<div class="o-summary-row o-summary-footer-row"/>`)
+			.append($(`<div class="o-summary-item o-summary-footer-item-empty"/>`).text("Total"))
+			.append($(`<div class="o-summary-item o-summary-footer-item"/>`).text(total.curlyPoints))
+			.append($(`<div class="o-summary-item o-summary-footer-item"/>`).text(total.squarePoints))
+			.append($(`<div class="o-summary-item o-summary-footer-item"/>`).text(total.points))
+			.append($(`<div class="o-summary-item o-summary-footer-item"/>`).text(total.cardCount))
+	);
+	$content.append($(`<div class="modal-footer"/>`)
+		.append($(`<button class="modal-button">Close</button>`)
+		.on('click', function(){
+			$("body").find("#oSummaryModal").remove();
+		})));
+
+  $dialog.attr("style", "display: block;");
+}
 
 window.URL = window.URL || window.webkitURL;
