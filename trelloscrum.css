@@ -6,47 +6,31 @@
 	font-size: 16px;
 	font-weight: bold;
 	float: right;
-	margin: 0 10px 10px 10px; /* improve alignment */
+	margin: 10px 10px 10px 10px; /* improve alignment */
 	line-height:18px;
 }
 .list-total > span {
 	margin: 4px 2px;
 	padding: 2px 5px;
 	border-radius: 4px;
-}
-.list-total > span.curly-points {
-	color: white !important;
 	font-weight: 500;
-	background-color: slateblue/*#006580*/ !important;
+}
+/* .list-total > span.curly-points {
 }
 .list-total > span.square-points {
-	color: white !important;
 	font-weight: 500;
-	background-color: teal/*#006580*/ !important;
 }
 .list-total > span.regular-points {
-	color: white !important;
 	font-weight: 500;
-	background-color: darkgoldenrod /*#00d5b5*/ !important;
 }
 .list-total > span.card-count {
-	color: white !important;
 	font-weight: 500;
-	background-color: rgb(51, 51, 51) /*#00d5b5*/ !important;
-}
+} */
 .list-total > span:empty {
 	color:inherit;
 	margin: 0;
 	padding:0;
 	border-radius: 0;
-}
-.board-header-btns .list-total{ /* only targets the board totals */
-	line-height:30px;
-	color: #0098c2;
-}
-.board-header-btns .list-total > span.regular-points { /* only targets the board totals */
-	opacity: 1;
-	color: #94e6fd;
 }
 
 .list .list-title h2 {
@@ -67,75 +51,65 @@
 	}
 }
 
+
 .badge-points {
-	color: white !important;
-	float: right;
-	text-align: right;
-	background-repeat: no-repeat !important;
-	background-position: 5px 5px !important;
-	padding: 2px 4px 0 19px !important;
 	border-radius: 3px;
 	font-size: 12px;
 	line-height: 18px;
+    margin: 0 !important;
+	padding: 4px 6px 0 3px !important;
+    height: 18px;
+	display: flex !important;
+	flex-wrap: wrap;
+    align-content: unset;
+	gap:3px;
 }
 .badge-points:empty {
 	display: none !important;
 }
-.badge-points.square-points{
+.badge-points .o-badge-icon{
+	margin:0;
+	mask-size: cover;
+	width: 14px;
+	height: 14px;
+}
+.badge-points .o-badge-text{
+	margin:0;
+	position: relative;
+	top: -2px;
+}
+/* colors */
+.curly-points {
+	color: black !important;
+	background-color: rgb(177, 172, 211)  !important;
+}
+.square-points{
+	color: black !important;
+	background-color: rgb(108, 227, 185) !important;
+}
+.regular-points{
+	color: black !important;
+	background-color: rgb(202, 175, 108)  !important;
+}
+.card-count{
 	color: white !important;
-	font-weight: 500;
-	background-color: teal/*#006580*/ !important;
+	background-color: rgb(51, 51, 51) !important;
 }
-.badge-points.curly-points {
-	color: white !important;
-	font-weight: 500;
-	background-color: slateblue /*#00d5b5*/ !important;
+.curly-points .o-badge-icon{
+	background-color: black !important;
 }
-.badge-points.regular-points{
-	color: white !important;
-	font-weight: 500;
-	background-color: darkgoldenrod /*#00d5b5*/ !important;
-	/* opacity: 0.5; */
+.square-points .o-badge-icon{
+	background-color: black !important;
 }
-
-.picker-curly-points,
-.picker-square-points,
-.picker-regular-points,
-.picker {
-	float: left;
-	width: 100%;
-	padding: 5px 0;
-}
-.picker-title {
-	padding-right: 20px;
-}
-
-.points-done-icon{
-	background-position: 0px 3px !important;
-	background-repeat: no-repeat !important;
-	margin-left:3px;
-}
-.js-points-done:hover > .points-done-icon{
-	background-position: -11px 3px !important;
-}
-
-.point-value {
-	background-color: #006580 !important;
-	border-radius: 3px;
-	padding: 2px 5px !important;
-	margin-right: 5px;
-	font-size: 15px !important;
-	color: white;
-	font-weight:bold;
-	cursor: pointer;
-}
-
-.point-value.curly-points-value {
-	background-color: red /*#00d5b5*/ !important;
-	
+.regular-points .o-badge-icon{
+	background-color: black !important;
 }
 
 .badge:empty{ display:none !important; }
+
+
+
+
 
 /* == b4t integration==*/
 #burndownLink .icon-sm{

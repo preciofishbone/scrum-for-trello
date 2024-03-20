@@ -68,34 +68,23 @@ var _ignoreTrelloElements = [
 
 //internals
 var iconUrl, pointsDoneUrl,
-	flameUrl, flame18Url,
-	estimatedUrl, plannedUrl, burnedUrl,
-	scrumLogoUrl, scrumLogo18Url;
+	estimatedUrl, plannedUrl, burnedUrl;
+
 // FIREFOX_BEGIN_REMOVE
 if(typeof chrome !== 'undefined'){
     // Works in Chrome & FF 57.
     // FIREFOX_END_REMOVE
 	iconUrl = chrome.runtime.getURL('images/storypoints-icon.png');
-	pointsDoneUrl = chrome.runtime.getURL('images/points-done.png');
-    flameUrl = chrome.runtime.getURL('images/burndown_for_trello_icon_12x12.png');
-    flame18Url = chrome.runtime.getURL('images/burndown_for_trello_icon_18x18.png');
-	scrumLogoUrl = chrome.runtime.getURL('images/trello-scrum-icon_12x12.png');
-	scrumLogo18Url = chrome.runtime.getURL('images/trello-scrum-icon_18x18.png');
-	estimatedUrl = chrome.runtime.getURL('images/estimated_12x12.png');
-	plannedUrl = chrome.runtime.getURL('images/planned_12x12.png');
-	burnedUrl = chrome.runtime.getURL('images/burned_12x12.png');
+	estimatedUrl = chrome.runtime.getURL('images/light-bulb-svgrepo-com.svg');
+	plannedUrl = chrome.runtime.getURL('images/clipboard-svgrepo-com.svg');
+	burnedUrl = chrome.runtime.getURL('images/wrench-svgrepo-com.svg');
 	// FIREFOX_BEGIN_REMOVE - This is for firefox review requirements. We can't have code that doesn't run in FF.
 } else if(navigator.userAgent.indexOf('Safari') != -1){ // Chrome defines both "Chrome" and "Safari", so this test MUST be done after testing for Chrome
 	// Works in Safari
 	iconUrl = safari.extension.baseURI + 'images/storypoints-icon.png';
-	pointsDoneUrl = safari.extension.baseURI + 'images/points-done.png';
-    flameUrl = safari.extension.baseURI + 'images/burndown_for_trello_icon_12x12.png';
-    flame18Url = safari.extension.baseURI + 'images/burndown_for_trello_icon_18x18.png';
-	scrumLogoUrl = safari.extension.baseURI + 'images/trello-scrum-icon_12x12.png';
-	scrumLogo18Url = safari.extension.baseURI + 'images/trello-scrum-icon_18x18.png';
-	estimatedUrl = safari.extension.baseURI + 'images/estimated_12x12.png';
-	plannedUrl = safari.extension.baseURI + 'images/planned_12x12.png';
-	burnedUrl = safari.extension.baseURI + 'images/burned_12x12.png';
+	estimatedUrl = safari.extension.baseURI + 'images/light-bulb-svgrepo-com.svg';
+	plannedUrl = safari.extension.baseURI + 'images/clipboard-svgrepo-com.svg';
+	burnedUrl = safari.extension.baseURI + 'images/wrench-svgrepo-com.svg';
 } // FIREFOX_END_REMOVE
 
 
@@ -357,7 +346,7 @@ function ListCard(el, pointType){
 		that=this,
 		busy=false,
 		$card=$(el),
-		$badge=$('<div class="badge badge-points point-count" style="background-image: url('+pointType.iconUrl+')"/>'),
+		$badge=$('<div class="badge badge-points point-count" />'),
 		to,
 		to2;
 
@@ -397,36 +386,43 @@ function ListCard(el, pointType){
 
 			clearTimeout(to2);
 			to2 = setTimeout(function(){
-			// Add the badge (for this point-type: curly, square or regular) to the badges div.
-			$badge
-				.text(that.points)
-				['addClass'](className)
-				.attr({title: 'This card has '+that.points+ ' ' + pointType.title })
-				.prependTo($card.find("[data-testid='card-front-badges']"));
+				$badge.empty();
+				if(that.points > 0){
+					// Add the badge (for this point-type: curly, square or regular) to the badges div.
+					$badge.append($('<span/>', {class: 'o-badge-icon', style: "mask-image: url('"+pointType.iconUrl+"')"}));
+					$badge.append($('<span/>', {class: 'o-badge-text'})
+						.text(that.points));
+					$badge
+						['addClass'](className)
+						.attr({title: 'This card has '+that.points+ ' ' + pointType.title })
+						.prependTo($card.find("[data-testid='card-front-badges']"));
+				}
 
-			// Update the DOM element's textContent and data if there were changes.
-			if(titleTextContent != parsedTitle){
-				$title.data('orig-title', titleTextContent); // store the non-mutilated title (with all of the estimates/time-spent in it).
-			}
-			
-			var tempParsedTitle = el._title;
-			for (var i in _pointsTypes){
-				tempParsedTitle = tempParsedTitle.replace(_pointsTypes[i].reg,'$1');
-			}
-			parsedTitle = $.trim(tempParsedTitle);
-			el._title = parsedTitle;
-			$title.data('parsed-title', parsedTitle); // save it to the DOM element so that both badge-types can refer back to it.
-			if($title[0].childNodes.length > 1){
-				$title[0].childNodes[$title[0].childNodes.length-1].textContent = parsedTitle; // if they keep the card numbers in the DOM
-			} else {
-				$title[0].textContent = parsedTitle; // if they yank the card numbers out of the DOM again.
-			}
-			var list = $card.closest("[data-testid='list']");
-			if(list[0]){
-				list[0].list.calc();
-			}
-			busy = false;
-		});
+				// Update the DOM element's textContent and data if there were changes.
+				if(titleTextContent != parsedTitle){
+					$title.data('orig-title', titleTextContent); // store the non-mutilated title (with all of the estimates/time-spent in it).
+				}
+				
+				var tempParsedTitle = el._title;
+				for (var i in _pointsTypes){
+					tempParsedTitle = tempParsedTitle.replace(_pointsTypes[i].reg,'$1');
+				}
+				parsedTitle = $.trim(tempParsedTitle);
+				el._title = parsedTitle;
+				
+				$title.data('parsed-title', parsedTitle); // save it to the DOM element so that both badge-types can refer back to it.
+				if($title[0].childNodes.length > 1){
+					$title[0].childNodes[$title[0].childNodes.length-1].textContent = parsedTitle; // if they keep the card numbers in the DOM
+				} else {
+					$title[0].textContent = parsedTitle; // if they yank the card numbers out of the DOM again.
+				}
+
+				var list = $card.closest("[data-testid='list']");
+				if(list[0]){
+					list[0].list.calc();
+				}
+				busy = false;
+			});
 		});
 	};
 

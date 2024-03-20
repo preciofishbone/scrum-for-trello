@@ -14,15 +14,11 @@
     "web_accessible_resources": [
 		{
 		"resources": [
-				"/images/storypoints-icon.png",
-				"/images/points-done.png",
-				"/images/burndown_for_trello_icon_12x12.png",
-				"/images/burned_12x12.png",
-				"/images/estimated_12x12.png",
-				"/images/planned_12x12.png",
-				"/images/burndown_for_trello_icon_18x18.png",
 				"/images/trello-scrum-icon_12x12.png",
-				"/images/trello-scrum-icon_18x18.png"
+				"/images/trello-scrum-icon_18x18.png",
+				"/images/light-bulb-svgrepo-com.svg",
+				"/images/wrench-svgrepo-com.svg",
+				"/images/clipboard-svgrepo-com.svg"
 			],
 		"matches": ["<all_urls>"]
 		}
