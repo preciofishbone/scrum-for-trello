@@ -203,6 +203,7 @@ recalcTotalsObserver.observe(document.body, obsConfig);
 
 var ignoreClicks = function(){ return false; };
 
+
 var ctto;
 function computeTotal(){
 	clearTimeout(ctto);
@@ -312,6 +313,7 @@ function List(el){
 	this.calc = debounce(function(){
 		self._calcInner();
     }, 500, true); // executes right away unless over its 500ms threshold since the last execution
+
 
 	this._calcInner	= function(e){ // don't call this directly. Call calc() instead.
 		clearTimeout(to);
